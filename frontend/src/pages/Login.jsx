@@ -113,6 +113,39 @@ export default function Login() {
             </button>
           </form>
 
+          {/* Accès Rapide */}
+          <div className="mt-8 space-y-3 pt-6 border-t border-gray-800">
+             <p className="text-[10px] font-black text-gray-500 uppercase tracking-[0.2em] text-center mb-4">Accès Rapide</p>
+             <div className="grid grid-cols-1 gap-2">
+                <div className="grid grid-cols-3 gap-2">
+                  <button 
+                    onClick={() => { setEmail('caisse@extremeburitos.com'); setPassword('caisse@2026'); }}
+                    className="w-full bg-gray-800/50 hover:bg-gray-800 text-gray-300 text-[9px] font-bold py-2.5 rounded-lg border border-gray-700 transition-all active:scale-[0.98]"
+                  >
+                    Caisse
+                  </button>
+                  <button 
+                    onClick={() => { setEmail('razafimandimbyzo618@gmail.com'); setPassword('serveur@1'); }}
+                    className="w-full bg-gray-800/50 hover:bg-gray-800 text-gray-300 text-[9px] font-bold py-2.5 rounded-lg border border-gray-700 transition-all active:scale-[0.98]"
+                  >
+                    Serveur
+                  </button>
+                  <button 
+                    onClick={() => { setEmail('cuisine@extremeburitos.com'); setPassword('cuisine@2026'); }}
+                    className="w-full bg-gray-800/50 hover:bg-gray-800 text-gray-300 text-[9px] font-bold py-2.5 rounded-lg border border-gray-700 transition-all active:scale-[0.98]"
+                  >
+                    Cuisine
+                  </button>
+                </div>
+                <button 
+                  onClick={() => { setEmail(''); setPassword(''); }}
+                  className="w-full bg-red-900/10 hover:bg-red-900/20 text-red-400/50 text-[8px] font-bold py-1.5 rounded-lg border border-red-900/10 transition-all active:scale-[0.98] mt-2"
+                >
+                  Admin (Manuel)
+                </button>
+             </div>
+          </div>
+
           {/* <div className="mt-8 text-center">
             <button 
               onClick={() => setIsSignUp(!isSignUp)}

@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import { createPortal } from 'react-dom';
 import { supabase } from '../supabaseClient';
-import { Search, ShoppingCart, Send, Loader2, Utensils, Trash2, X, ChevronRight, LayoutGrid, CheckCircle2, Clock } from 'lucide-react';
+import { Search, ShoppingCart, Send, Loader2, Utensils, Trash2, X, ChevronRight, LayoutGrid, CheckCircle2, Clock, Printer } from 'lucide-react';
 
 const TABLES = Array.from({ length: 12 }, (_, i) => `Table ${i + 1}`);
 
@@ -18,6 +19,18 @@ export default function OrderTaker({ session, selectedDepotId }) {
   const [showCartMobile, setShowCartMobile] = useState(false);
   const [showTableSelect, setShowTableSelect] = useState(true);
   const [loading, setLoading] = useState(true);
+  const [previewOrder, setPreviewOrder] = useState(null);
+  const [currentDepotInfo, setCurrentDepotInfo] = useState(null);
+
+  // Fetch Depot Info
+  useEffect(() => {
+    const fetchDepot = async () => {
+        if (!selectedDepotId) return;
+        const { data } = await supabase.from('depots').select('*').eq('id', selectedDepotId).single();
+        if (data) setCurrentDepotInfo(data);
+    };
+    fetchDepot();
+  }, [selectedDepotId]);
   
   // Fetch active orders for all tables to show status
   const fetchTableStatus = async () => {
@@ -25,7 +38,8 @@ export default function OrderTaker({ session, selectedDepotId }) {
     const { data: activeOrders } = await supabase
       .from('commandes')
       .select('table_name, status, id')
-      .not('status', 'in', '("paid", "cancelled")');
+      .neq('status', 'paid')
+      .neq('status', 'cancelled');
     
     const statusMap = {};
     if (activeOrders) {
@@ -56,6 +70,45 @@ export default function OrderTaker({ session, selectedDepotId }) {
     setTableStatus(statusMap);
   };
 
+  const fetchExistingOrder = async (tableName) => {
+    if (!tableName) {
+      setExistingOrderItems([]);
+      return;
+    }
+    // Fetch active order regardless of status (as long as not paid/cancelled)
+    const { data: order } = await supabase
+      .from('commandes')
+      .select('id')
+      .eq('table_name', tableName)
+      .neq('status', 'paid')
+      .neq('status', 'cancelled')
+      .maybeSingle();
+    
+    if (order) {
+      const { data: items } = await supabase
+        .from('commande_items')
+        .select('*')
+        .eq('commande_id', order.id);
+      
+      // Manual lookup to avoid FK join issues
+      const itemsWithNames = await Promise.all((items || []).map(async (item) => {
+          if (item.item_type === 'product' && item.item_id) {
+              const { data: prodData } = await supabase
+                  .from('produits')
+                  .select('name')
+                  .eq('id', item.item_id)
+                  .maybeSingle();
+              return { ...item, produits: prodData || { name: 'Produit inconnu' } };
+          }
+          return { ...item, produits: { name: 'Menu/Article' } };
+      }));
+      
+      setExistingOrderItems(itemsWithNames || []);
+    } else {
+      setExistingOrderItems([]);
+    }
+  };
+
   useEffect(() => {
     fetchTableStatus();
 
@@ -66,53 +119,22 @@ export default function OrderTaker({ session, selectedDepotId }) {
         event: '*', 
         schema: 'public', 
         table: 'commandes' 
-      }, fetchTableStatus)
+      }, (payload) => {
+        fetchTableStatus();
+        // If we have a selected table, check if it was updated
+        if (selectedTable) {
+           fetchExistingOrder(selectedTable);
+        }
+      })
       .subscribe();
 
     return () => {
       supabase.removeChannel(channel);
     };
-  }, []);
+  }, [selectedTable]);
 
   useEffect(() => {
-    const fetchExistingOrder = async () => {
-      if (!selectedTable) {
-        setExistingOrderItems([]);
-        return;
-      }
-      // Fetch active order regardless of status (as long as not paid/cancelled)
-      const { data: order } = await supabase
-        .from('commandes')
-        .select('id')
-        .eq('table_name', selectedTable)
-        .not('status', 'in', '("paid", "cancelled")')
-        .maybeSingle();
-      
-      if (order) {
-        const { data: items } = await supabase
-          .from('commande_items')
-          .select('*')
-          .eq('commande_id', order.id);
-        
-        // Manual lookup to avoid FK join issues
-        const itemsWithNames = await Promise.all((items || []).map(async (item) => {
-            if (item.item_type === 'product' && item.item_id) {
-                const { data: prodData } = await supabase
-                    .from('produits')
-                    .select('name')
-                    .eq('id', item.item_id)
-                    .maybeSingle();
-                return { ...item, produits: prodData || { name: 'Produit inconnu' } };
-            }
-            return { ...item, produits: { name: 'Menu/Article' } };
-        }));
-        
-        setExistingOrderItems(itemsWithNames || []);
-      } else {
-        setExistingOrderItems([]);
-      }
-    };
-    fetchExistingOrder();
+    fetchExistingOrder(selectedTable);
   }, [selectedTable]);
   
   useEffect(() => {
@@ -209,19 +231,20 @@ export default function OrderTaker({ session, selectedDepotId }) {
 
   const total = useMemo(() => cart.reduce((acc, item) => acc + (item.quantity * item.price), 0), [cart]);
 
-  const handleSendToKitchen = async () => {
+  const confirmAndSend = async () => {
     if (!selectedTable || cart.length === 0) return;
     setIsProcessing(true);
     try {
       const { data: existingOrder } = await supabase
         .from('commandes')
-        .select('id, total_amount, status, order_reference') // Fetch reference
+        .select('id, total_amount, status, order_reference')
         .eq('table_name', selectedTable)
-        .not('status', 'in', '("paid", "cancelled")')
+        .neq('status', 'paid')
+        .neq('status', 'cancelled')
         .maybeSingle();
 
       let commandeId;
-      let orderReference; // New variable
+      let orderReference;
       let newTotal;
       let isExistingOrderReady = false;
 
@@ -230,7 +253,7 @@ export default function OrderTaker({ session, selectedDepotId }) {
             isExistingOrderReady = true;
         }
         commandeId = existingOrder.id;
-        orderReference = existingOrder.order_reference; // Use existing ref
+        orderReference = existingOrder.order_reference;
         newTotal = Number(existingOrder.total_amount) + total;
         
         await supabase
@@ -241,9 +264,9 @@ export default function OrderTaker({ session, selectedDepotId }) {
         await supabase
           .from('factures')
           .update({ total_amount: newTotal })
-          .eq('order_reference', orderReference); // Use ref
+          .eq('order_reference', orderReference);
       } else {
-        orderReference = `CMD-${Date.now().toString().slice(-6)}`; // Generate unique ref
+        orderReference = `CMD-${Date.now().toString().slice(-6)}`;
         const { data: commande, error: cmdErr } = await supabase
           .from('commandes')
           .insert([{ 
@@ -251,7 +274,7 @@ export default function OrderTaker({ session, selectedDepotId }) {
               total_amount: total, 
               status: 'pending',
               user_id: session?.user?.id,
-              order_reference: orderReference // Save ref
+              order_reference: orderReference
           }])
           .select().single();
         
@@ -259,7 +282,7 @@ export default function OrderTaker({ session, selectedDepotId }) {
         commandeId = commande.id;
         
         await supabase.from('factures').insert([{ 
-            order_reference: orderReference, // Save ref
+            order_reference: orderReference,
             commande_id: commandeId,
             number: `INV-${Date.now().toString().slice(-6)}`, 
             user_id: session?.user?.id, 
@@ -273,7 +296,7 @@ export default function OrderTaker({ session, selectedDepotId }) {
 
       const itemsToInsert = cart.map(item => ({
         commande_id: commandeId,
-        order_reference: orderReference, // Add ref to items if needed in DB
+        order_reference: orderReference,
         item_id: item.id,
         item_type: item.type || 'product',
         quantity: item.quantity,
@@ -284,17 +307,43 @@ export default function OrderTaker({ session, selectedDepotId }) {
       const { error: itemsErr } = await supabase.from('commande_items').insert(itemsToInsert);
       if (itemsErr) throw itemsErr;
 
-      fetchTableStatus(); // Refresh statuses
+      fetchTableStatus();
       setCart([]);
       setSelectedTable(null);
       setShowTableSelect(true);
       setShowCartMobile(false);
+      setPreviewOrder(null);
+      alert("Commande envoyée en cuisine !");
     } catch (e) {
       alert("Erreur: " + e.message);
       console.error(e);
     } finally {
       setIsProcessing(false);
     }
+  };
+
+  const handleSendToKitchen = () => {
+    if (!selectedTable || cart.length === 0) return;
+    
+    // We don't have the order_reference yet if it's a new order
+    // But we can preview with a placeholder or fetch if existing
+    const orderRef = existingOrderItems.length > 0 ? existingOrderItems[0].order_reference : `CMD-NEW`;
+
+    // Prepare preview data
+    const previewData = {
+        table_name: selectedTable,
+        order_reference: orderRef,
+        items: cart.map(item => ({
+            name: item.name,
+            quantity: item.quantity,
+            price: item.price,
+            total: item.quantity * item.price
+        })),
+        total_amount: total,
+        date: new Date().toLocaleString('fr-FR')
+    };
+    
+    setPreviewOrder(previewData);
   };
 
   const handleTableSelect = (table) => {
@@ -429,7 +478,7 @@ export default function OrderTaker({ session, selectedDepotId }) {
               </div>
 
               {/* Product Grid */}
-              <div className="flex-1 overflow-y-auto pr-2 grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 gap-4 content-start pb-4">
+              <div className="flex-1 overflow-y-auto pr-2 grid grid-cols-2 sm:grid-cols-4 xl:grid-cols-5 gap-3 content-start pb-4">
                 {loading ? (
                   <div className="col-span-full h-40 flex items-center justify-center">
                     <Loader2 className="animate-spin text-red-600" size={40} />
@@ -450,18 +499,23 @@ export default function OrderTaker({ session, selectedDepotId }) {
         </div>
 
         {/* Sidebar Cart - Desktop */}
-        <div className="hidden lg:flex w-80 xl:w-96 bg-gray-900 text-white p-6 flex-col shadow-2xl border-l border-gray-800">
-          <CartContent 
-            selectedTable={selectedTable} 
-            cart={cart}
-            existingOrderItems={existingOrderItems}
-            removeFromCart={removeFromCart} 
-            updateQuantity={updateQuantity}
-            total={total} 
-            handleSendToKitchen={handleSendToKitchen} 
-            isProcessing={isProcessing} 
-            onClose={() => {}}
-          />
+        <div className="hidden lg:flex w-72 xl:w-80 bg-[#0f172a] text-white p-5 flex-col shadow-[0_0_50px_rgba(0,0,0,0.3)] border-l border-white/5 relative overflow-hidden">
+          {/* Subtle background glow */}
+          <div className="absolute -top-24 -right-24 w-48 h-48 bg-red-600/10 blur-[100px] rounded-full"></div>
+          
+          <div className="relative z-10 flex flex-col h-full">
+            <CartContent 
+              selectedTable={selectedTable} 
+              cart={cart}
+              existingOrderItems={existingOrderItems}
+              removeFromCart={removeFromCart} 
+              updateQuantity={updateQuantity}
+              total={total} 
+              handleSendToKitchen={handleSendToKitchen} 
+              isProcessing={isProcessing} 
+              onClose={() => {}}
+            />
+          </div>
         </div>
 
         {/* Floating Cart Button - Mobile */}
@@ -503,6 +557,112 @@ export default function OrderTaker({ session, selectedDepotId }) {
           </div>
         )}
       </div>
+
+      {/* Ticket Preview Modal */}
+      {previewOrder && createPortal(
+        <div className="fixed inset-0 z-[150] flex items-center justify-center bg-black/80 backdrop-blur-md p-4">
+          <style>{`
+            @media print {
+              @page { margin: 0 !important; size: 80mm auto; }
+              #root { display: none !important; }
+              body, html { 
+                margin: 0 !important;
+                padding: 0 !important;
+                background: white !important;
+              }
+              #printable-ticket {
+                visibility: visible !important;
+                display: block !important;
+                width: 65mm !important;
+                margin: 0 auto !important;
+                padding: 10mm !important;
+                font-family: 'Courier New', Courier, monospace !important;
+                color: black !important;
+              }
+              .no-print { display: none !important; }
+            }
+          `}</style>
+
+          <div className="bg-white text-black w-full max-w-[400px] max-h-[90vh] flex flex-col rounded-3xl overflow-hidden shadow-2xl">
+            <div className="p-4 border-b border-gray-100 flex justify-between items-center bg-gray-50 no-print">
+               <h3 className="font-black uppercase text-xs tracking-widest text-gray-400">Aperçu Ticket</h3>
+               <button onClick={() => setPreviewOrder(null)} className="p-2 hover:bg-gray-200 rounded-full transition-colors"><X size={20}/></button>
+            </div>
+
+            <div id="printable-ticket" className="flex-1 overflow-y-auto p-8 font-mono text-[14px]">
+               <div className="text-center mb-6">
+                  {/* Logo */}
+                  <div className="flex justify-center mb-4">
+                     <img src="/logo.jpeg" alt="Logo" className="w-20 h-20 object-cover rounded-full border-2 border-black" onError={(e) => e.target.style.display='none'} />
+                  </div>
+                  <h2 className="text-xl font-black uppercase mb-1">{currentDepotInfo?.name || 'Extrême Buritos'}</h2>
+                  <p className="text-[10px] uppercase opacity-60 font-bold">{currentDepotInfo?.address || 'Antananarivo'}</p>
+                  <p className="text-[10px] uppercase opacity-60 font-bold">Tél: {currentDepotInfo?.phone || '---'}</p>
+                  
+                  <div className="my-4 border-t border-dashed border-black/20"></div>
+                  
+                  <div className="bg-gray-100 py-3 px-4 rounded-xl space-y-1 mb-4">
+                      <h3 className="font-black text-lg uppercase leading-none">{previewOrder.table_name}</h3>
+                      <p className="text-[10px] font-black text-red-600 uppercase tracking-widest">Bon de Commande</p>
+                      <div className="flex justify-between items-center text-[10px] font-bold uppercase opacity-60 pt-1">
+                          <span>REF: {previewOrder.order_reference}</span>
+                          <span>{previewOrder.date.split(' ')[0]}</span>
+                      </div>
+                  </div>
+               </div>
+
+               <div className="space-y-3">
+                  <div className="flex justify-between font-black text-[10px] uppercase border-b-2 border-black pb-1">
+                     <span>Désignation</span>
+                     <span className="pr-2">Total</span>
+                  </div>
+                  {previewOrder.items.map((item, idx) => (
+                    <div key={idx} className="flex justify-between items-start text-sm border-b border-dashed border-black/5 pb-1">
+                       <div className="flex flex-col flex-1 pr-2">
+                          <span className="font-bold break-words">{item.name}</span>
+                          <span className="text-[11px] opacity-60">{item.quantity} x {item.price.toLocaleString()}</span>
+                       </div>
+                       <span className="font-bold whitespace-nowrap">{item.total.toLocaleString()}</span>
+                    </div>
+                  ))}
+               </div>
+
+               <div className="my-6 border-t-2 border-dashed border-black"></div>
+
+               <div className="space-y-4">
+                  <div className="flex flex-col items-center justify-center gap-1 bg-black text-white py-4 rounded-2xl">
+                      <span className="text-[10px] font-black uppercase opacity-60">TOTAL COMMANDE</span>
+                      <div className="flex items-baseline gap-1">
+                        <span className="text-3xl font-black">{previewOrder.total_amount.toLocaleString()}</span>
+                        <span className="text-sm font-bold uppercase">Ar</span>
+                      </div>
+                  </div>
+               </div>
+
+               <div className="mt-8 text-center text-[10px] uppercase opacity-40 font-bold border-t border-dashed border-black/20 pt-4">
+                  <p>*** Bon de Cuisine ***</p>
+                  <p>Heure: {previewOrder.date.split(' ')[1]}</p>
+               </div>
+            </div>
+
+            <div className="p-6 bg-gray-50 border-t border-gray-100 flex gap-4 no-print">
+               <button 
+                onClick={() => window.print()}
+                className="flex-1 py-4 bg-gray-200 text-gray-700 rounded-2xl font-black text-xs uppercase flex items-center justify-center gap-2 hover:bg-gray-300 transition-all"
+               >
+                 <Printer size={18}/> Imprimer
+               </button>
+               <button 
+                onClick={confirmAndSend}
+                disabled={isProcessing}
+                className="flex-[2] py-4 bg-red-600 text-white rounded-2xl font-black text-xs uppercase flex items-center justify-center gap-2 hover:bg-red-700 transition-all shadow-lg shadow-red-200"
+               >
+                 {isProcessing ? <Loader2 className="animate-spin" size={18}/> : <><CheckCircle2 size={18}/> Confirmer l'envoi</>}
+               </button>
+            </div>
+          </div>
+        </div>
+      , document.body)}
     </div>
   );
 }
@@ -526,30 +686,30 @@ function ProductCard({ p, onClick }) {
   return (
     <button 
       onClick={onClick}
-      className={`group relative p-5 rounded-[2rem] text-left transition-all border-2 border-transparent active:scale-[0.98] flex flex-col justify-between h-40 md:h-48 shadow-sm overflow-hidden ${
+      className={`group relative p-4 rounded-[1.5rem] text-left transition-all border-2 border-transparent active:scale-[0.98] flex flex-col justify-between h-32 md:h-36 shadow-sm overflow-hidden ${
         p.type === 'menu' ? 'bg-red-50 hover:bg-red-100' : 'bg-gray-50 hover:bg-gray-100'
       }`}
     >
       <div className="relative z-10 flex flex-col h-full">
-        <div className="flex justify-between items-start mb-2">
-          <div className="font-black uppercase text-xs md:text-sm leading-tight line-clamp-3 flex-1 pr-2 text-gray-800">{p.name}</div>
-          {p.type === 'menu' && <span className="bg-red-600 text-white text-[8px] font-black px-2 py-0.5 rounded-full uppercase tracking-tighter shrink-0">Menu</span>}
+        <div className="flex justify-between items-start mb-1">
+          <div className="font-black uppercase text-[10px] md:text-xs leading-tight line-clamp-2 flex-1 pr-2 text-gray-800">{p.name}</div>
+          {p.type === 'menu' && <span className="bg-red-600 text-white text-[7px] font-black px-1.5 py-0.5 rounded-full uppercase tracking-tighter shrink-0">Menu</span>}
         </div>
         
         <div className="mt-auto">
-          <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Prix Unitaire</p>
-          <div className="font-black text-xl md:text-2xl text-red-600 tracking-tighter">
-            {p.price.toLocaleString()} <span className="text-[10px] md:text-xs">Ar</span>
+          <p className="text-[8px] font-black text-gray-400 uppercase tracking-widest mb-0.5">Prix Unitaire</p>
+          <div className="font-black text-lg md:text-xl text-red-600 tracking-tighter">
+            {p.price.toLocaleString()} <span className="text-[8px] md:text-[10px]">Ar</span>
           </div>
         </div>
       </div>
       
       {/* Decorative background icon */}
-      <Utensils className="absolute -bottom-2 -right-2 text-gray-200/50 group-hover:text-red-200/50 transition-colors" size={80} />
+      <Utensils className="absolute -bottom-1 -right-1 text-gray-200/50 group-hover:text-red-200/50 transition-colors" size={64} />
       
       {/* Add indicator */}
-      <div className="absolute top-4 right-4 opacity-0 group-hover:opacity-100 transition-opacity bg-white text-red-600 p-2 rounded-xl shadow-lg">
-        <ChevronRight size={16} />
+      <div className="absolute top-3 right-3 opacity-0 group-hover:opacity-100 transition-opacity bg-white text-red-600 p-1.5 rounded-lg shadow-lg">
+        <ChevronRight size={14} />
       </div>
     </button>
   );

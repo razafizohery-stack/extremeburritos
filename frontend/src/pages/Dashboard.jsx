@@ -272,8 +272,8 @@ export default function Dashboard({ session }) {
       )}
 
       {/* Sidebar */}
-      <aside className={`fixed ${isPosMode ? '' : 'lg:static'} inset-y-0 left-0 z-30 w-96 bg-black border-r border-gray-800 flex flex-col transform transition-transform duration-300 ease-in-out h-full overflow-y-auto ${isSidebarOpen ? 'translate-x-0' : (isPosMode ? '-translate-x-full' : '-translate-x-full lg:translate-x-0')}`}>
-        <div className="p-8">
+      <aside className={`fixed ${isPosMode ? '' : 'lg:static'} inset-y-0 left-0 z-30 w-96 bg-black border-r border-gray-800 flex flex-col transform transition-transform duration-300 ease-in-out h-screen ${isSidebarOpen ? 'translate-x-0' : (isPosMode ? '-translate-x-full' : '-translate-x-full lg:translate-x-0')}`}>
+        <div className="p-8 shrink-0">
           <div className="flex items-center justify-between mb-10">
             <div onClick={() => navigate('/dashboard')} className="cursor-pointer flex items-center gap-3">
               <img src="/logo.jpeg" alt="Logo" className="w-12 h-12 rounded-xl object-cover shadow-lg shadow-red-900/20" />
@@ -283,202 +283,201 @@ export default function Dashboard({ session }) {
               <X size={24} />
             </button>
           </div>
-
-          <nav className="flex-1 space-y-8 overflow-y-auto px-4 no-scrollbar pb-10">
-            {/* GROUPE 1: Caisse & Ventes (superAdmin or Caissier) */}
-            {(userRole === 'superAdmin' || userRole?.startsWith('Caissier')) && (
-              <div>
-                <p className="text-[14px] font-black text-gray-500 uppercase tracking-widest mb-3 px-4">Caisse & Ventes</p>
-                <div className="space-y-1">
-                  <NavItem icon={<ShoppingCart size={20} />} label="Caisse Resto" active={activeTab === 'restaurant-pos'} onClick={() => { navigate('/dashboard/restaurant-pos'); closeSidebar(); }} />
-                  <NavItem icon={<TrendingUp size={20} />} label="Résultat Journalière" active={activeTab === 'sales-analytics'} onClick={() => { navigate('/dashboard/sales-analytics'); closeSidebar(); }} />
-                </div>
-              </div>
-            )}
-
-            {/* RESTAURANT SECTION (superAdmin, serveur, cuisine, Caissier) */}
-            <div>
-              <p className="text-[14px] font-black text-gray-500 uppercase tracking-widest mb-3 px-4">Restaurant Extrême Buritos</p>
-              <div className="space-y-1">
-                {(userRole === 'superAdmin') && (
-                  <NavItem icon={<LayoutDashboard size={20} />} label="Gestion Menus" active={activeTab === 'menus'} onClick={() => { navigate('/dashboard/menus'); closeSidebar(); }} />
-                )}
-                {(userRole === 'superAdmin' || userRole === 'serveur') && (
-                  <NavItem icon={<Utensils size={20} />} label="Prise de Commande" active={activeTab === 'restaurant-order'} onClick={() => { navigate('/dashboard/restaurant-order'); closeSidebar(); }} />
-                )}
-                {(userRole === 'superAdmin' || userRole === 'cuisine') && (
-                  <NavItem icon={<Clock size={20} />} label="Cuisine" active={activeTab === 'restaurant-kitchen'} onClick={() => { navigate('/dashboard/restaurant-kitchen'); closeSidebar(); }} />
-                )}
-              </div>
-            </div>
-
-            {/* GROUPE 2: Gestion Financière (superAdmin only) */}
-            {userRole === 'superAdmin' && (
-              <>
-                <div>
-                  <p className="text-[14px] font-black text-gray-500 uppercase tracking-widest mb-3 px-4">Gestion Financière</p>
-                  <div className="space-y-1">
-                    <NavItem icon={<FileText size={20} />} label="Facturation" active={activeTab === 'billing'} onClick={() => { navigate('/dashboard/billing'); closeSidebar(); }} />
-                    <NavItem icon={<DollarSign size={20} />} label="Décaissements" active={activeTab === 'decaissement'} onClick={() => { navigate('/dashboard/decaissement'); closeSidebar(); }} />
-                  </div>
-                </div>
-
-                {/* GROUPE 3: Clients */}
-                <div>
-                  <p className="text-[14px] font-black text-gray-500 uppercase tracking-widest mb-3 px-4">Clients</p>
-                  <div className="space-y-1">
-                    <button 
-                      onClick={() => setIsClientsOpen(!isClientsOpen)}
-                      className={`flex items-center justify-between px-4 py-3.5 rounded-2xl transition-all w-full text-left ${
-                        ['clients', 'credit_history', 'deadlines'].includes(activeTab)
-                          ? 'bg-red-600 text-white shadow-lg' 
-                          : 'text-gray-400 hover:bg-gray-800 hover:text-white'
-                      }`}
-                    >
-                      <div className="flex items-center gap-4">
-                        <Users size={20} />
-                        <span className="font-bold text-lg tracking-tight">Menu Client</span>
-                      </div>
-                      <ChevronDown size={16} className={`transition-transform ${isClientsOpen ? 'rotate-180' : ''}`} />
-                    </button>
-                    
-                    {isClientsOpen && (
-                      <div className="ml-6 mt-1 space-y-1 border-l-2 border-gray-700 pl-4">
-                        <button 
-                          onClick={() => { navigate('/dashboard/clients'); closeSidebar(); }}
-                          className={`block w-full text-left px-4 py-2 rounded-xl text-lg font-bold transition-all ${activeTab === 'clients' ? 'bg-red-600 text-white shadow-md' : 'text-gray-400 hover:bg-gray-800 hover:text-white'}`}
-                        >
-                          Liste
-                        </button>
-                        <button
-                         onClick={() => { navigate('/dashboard/credit_history'); closeSidebar(); }}
-                         className={`block w-full text-left px-4 py-2 rounded-xl text-lg font-bold transition-all ${activeTab === 'credit_history' ? 'bg-red-600 text-white shadow-md' : 'text-gray-400 hover:bg-gray-800 hover:text-white'}`}
-                        >
-                         Historique client
-                        </button>
-                        <button
-                         onClick={() => { navigate('/dashboard/deadlines'); closeSidebar(); }}
-                         className={`block w-full text-left px-4 py-2 rounded-xl text-lg font-bold transition-all ${activeTab === 'deadlines' ? 'bg-red-600 text-white shadow-md' : 'text-gray-400 hover:bg-gray-800 hover:text-white'}`}
-                        >
-                         Echéancier
-                        </button>
-                      </div>
-                    )}
-                  </div>
-                </div>
-
-                {/* GROUPE 4: Fournisseurs */}
-                <div>
-                  <p className="text-[14px] font-black text-gray-500 uppercase tracking-widest mb-3 px-4">Fournisseurs</p>
-                  <div className="space-y-1">
-                    <button 
-                      onClick={() => setIsSuppliersOpen(!isSuppliersOpen)}
-                      className={`flex items-center justify-between px-4 py-3.5 rounded-2xl transition-all w-full text-left ${
-                        ['suppliers', 'supplier-history', 'supplier_credits'].includes(activeTab)
-                          ? 'bg-red-600 text-white shadow-lg' 
-                          : 'text-gray-400 hover:bg-gray-800 hover:text-white'
-                      }`}
-                    >
-                      <div className="flex items-center gap-4">
-                        <Users size={20} />
-                        <span className="font-bold text-lg tracking-tight">Menu Fournisseur</span>
-                      </div>
-                      <ChevronDown size={16} className={`transition-transform ${isSuppliersOpen ? 'rotate-180' : ''}`} />
-                    </button>
-                    
-                    {isSuppliersOpen && (
-                      <div className="ml-6 mt-1 space-y-1 border-l-2 border-gray-700 pl-4">
-                        <button 
-                          onClick={() => { navigate('/dashboard/suppliers'); closeSidebar(); }}
-                          className={`block w-full text-left px-4 py-2 rounded-xl text-lg font-bold transition-all ${activeTab === 'suppliers' ? 'bg-red-600 text-white shadow-md' : 'text-gray-400 hover:bg-gray-800 hover:text-white'}`}
-                        >
-                          Liste Fournisseurs
-                        </button>
-                        <button 
-                          onClick={() => { navigate('/dashboard/supplier_credits'); closeSidebar(); }}
-                          className={`block w-full text-left px-4 py-2 rounded-xl text-lg font-bold transition-all ${activeTab === 'supplier_credits' ? 'bg-red-600 text-white shadow-md' : 'text-gray-400 hover:bg-gray-800 hover:text-white'}`}
-                        >
-                          Crédit Fournisseurs
-                        </button>
-                      </div>
-                    )}
-                  </div>
-                </div>
-
-                {/* GROUPE 4: Stock & Logistique */}
-                <div>
-                  <p className="text-[14px] font-black text-gray-500 uppercase tracking-widest mb-3 px-4">Stock & Logistique</p>
-                  <div className="space-y-1">
-                    <div className="space-y-1">
-                      <button 
-                        onClick={() => setIsInventoryOpen(!isInventoryOpen)}
-                        className={`flex items-center justify-between px-4 py-3.5 rounded-2xl transition-all w-full text-left ${
-                          ['inventory', 'products', 'stock-entry', 'historique'].includes(activeTab)
-                            ? 'bg-red-600 text-white shadow-lg' 
-                            : 'text-gray-400 hover:bg-gray-800 hover:text-white'
-                        }`}
-                      >
-                        <div className="flex items-center gap-4">
-                          <Package size={20} />
-                          <span className="font-bold text-lg tracking-tight">Gestion Stock</span>
-                        </div>
-                        <ChevronDown size={16} className={`transition-transform ${isInventoryOpen ? 'rotate-180' : ''}`} />
-                      </button>
-                      
-                      {isInventoryOpen && (
-                        <div className="ml-6 mt-1 space-y-1 border-l-2 border-gray-700 pl-4">
-                          <button 
-                            onClick={() => handleProtectedNavigation('/dashboard/products')}
-                            className={`block w-full text-left px-4 py-2 rounded-xl text-lg font-bold transition-all ${activeTab === 'products' ? 'bg-red-600 text-white shadow-md' : 'text-gray-400 hover:bg-gray-800 hover:text-white'}`}
-                          >
-                            Stock Principal
-                          </button>
-                          <button 
-                            onClick={() => handleProtectedNavigation('/dashboard/inventory')}
-                            className={`block w-full text-left px-4 py-2 rounded-xl text-lg font-bold transition-all ${activeTab === 'inventory' ? 'bg-red-600 text-white shadow-md' : 'text-gray-400 hover:bg-gray-800 hover:text-white'}`}
-                          >
-                            Stock par Dépôt
-                          </button>
-                          <button 
-                            onClick={() => handleProtectedNavigation('/dashboard/stock-entry')}
-                            className={`block w-full text-left px-4 py-2 rounded-xl text-lg font-bold transition-all ${activeTab === 'stock-entry' ? 'bg-red-600 text-white shadow-md' : 'text-gray-400 hover:bg-gray-800 hover:text-white'}`}
-                          >
-                            Entrée de Stock
-                          </button>
-                          <button 
-                            onClick={() => handleProtectedNavigation('/dashboard/historique')}
-                            className={`block w-full text-left px-4 py-2 rounded-xl text-lg font-bold transition-all ${activeTab === 'historique' ? 'bg-red-600 text-white shadow-md' : 'text-gray-400 hover:bg-gray-800 hover:text-white'}`}
-                          >
-                            Historique
-                          </button>
-                          <button 
-                            onClick={() => handleProtectedNavigation('/dashboard/stock-transfer')}
-                            className={`block w-full text-left px-4 py-2 rounded-xl text-lg font-bold transition-all ${activeTab === 'stock-transfer' ? 'bg-red-600 text-white shadow-md' : 'text-gray-400 hover:bg-gray-800 hover:text-white'}`}
-                          >
-                            Transfert
-                          </button>
-                        </div>
-                      )}
-                    </div>
-                    <NavItem icon={<Box size={20} />} label="Conversions" active={activeTab === 'conversions'} onClick={() => { navigate('/dashboard/conversions'); closeSidebar(); }} />
-                    <NavItem icon={<Tag size={20} />} label="Catégories" active={activeTab === 'categories'} onClick={() => { navigate('/dashboard/categories'); closeSidebar(); }} />
-                    <NavItem icon={<Building2 size={20} />} label="Dépôts" active={activeTab === 'depots'} onClick={() => { navigate('/dashboard/depots'); closeSidebar(); }} />
-                  </div>
-                </div>
-
-                <div>
-                  <p className="text-[14px] font-black text-gray-500 uppercase tracking-widest mb-3 px-4">Système</p>
-                  <div className="space-y-1">
-                    <NavItem icon={<Users size={20} />} label="Utilisateurs & Accès" active={activeTab === 'user-management'} onClick={() => { navigate('/dashboard/user-management'); closeSidebar(); }} />
-                    <NavItem icon={<SettingsIcon size={20} />} label="Paramètres" active={activeTab === 'settings'} onClick={() => { navigate('/dashboard/settings'); closeSidebar(); }} />
-                  </div>
-                </div>
-              </>
-            )}
-          </nav>
         </div>
 
-        <div className="mt-auto p-8 border-t border-gray-800">
+        <nav className="flex-1 space-y-8 overflow-y-auto px-4 no-scrollbar pb-10">
+          {/* GROUPE 1: Caisse & Ventes (superAdmin or Caissier) */}
+          {(userRole === 'superAdmin' || userRole?.toLowerCase().startsWith('caissier')) && (
+            <div>
+              <p className="text-[14px] font-black text-gray-500 uppercase tracking-widest mb-3 px-4">Caisse & Ventes</p>
+              <div className="space-y-1">
+                <NavItem icon={<ShoppingCart size={20} />} label="Caisse Resto" active={activeTab === 'restaurant-pos'} onClick={() => { navigate('/dashboard/restaurant-pos'); closeSidebar(); }} />
+                <NavItem icon={<TrendingUp size={20} />} label="Résultat Journalière" active={activeTab === 'sales-analytics'} onClick={() => { navigate('/dashboard/sales-analytics'); closeSidebar(); }} />
+              </div>
+            </div>
+          )}
+
+          {/* RESTAURANT SECTION (superAdmin, serveur, cuisine, Caissier) */}
+          <div>
+            <div className="space-y-1">
+              {(userRole === 'superAdmin') && (
+                <NavItem icon={<LayoutDashboard size={20} />} label="Gestion Menus" active={activeTab === 'menus'} onClick={() => { navigate('/dashboard/menus'); closeSidebar(); }} />
+              )}
+              {(userRole === 'superAdmin' || userRole === 'serveur') && (
+                <NavItem icon={<Utensils size={20} />} label="Prise de Commande" active={activeTab === 'restaurant-order'} onClick={() => { navigate('/dashboard/restaurant-order'); closeSidebar(); }} />
+              )}
+              {(userRole === 'superAdmin' || userRole === 'cuisine') && (
+                <NavItem icon={<Clock size={20} />} label="Cuisine" active={activeTab === 'restaurant-kitchen'} onClick={() => { navigate('/dashboard/restaurant-kitchen'); closeSidebar(); }} />
+              )}
+            </div>
+          </div>
+
+          {/* GROUPE 2: Gestion Financière (superAdmin only) */}
+          {userRole === 'superAdmin' && (
+            <>
+              <div>
+                <p className="text-[14px] font-black text-gray-500 uppercase tracking-widest mb-3 px-4">Gestion Financière</p>
+                <div className="space-y-1">
+                  <NavItem icon={<FileText size={20} />} label="Facturation" active={activeTab === 'billing'} onClick={() => { navigate('/dashboard/billing'); closeSidebar(); }} />
+                  <NavItem icon={<DollarSign size={20} />} label="Décaissements" active={activeTab === 'decaissement'} onClick={() => { navigate('/dashboard/decaissement'); closeSidebar(); }} />
+                </div>
+              </div>
+
+              {/* GROUPE 3: Clients */}
+              <div>
+                <p className="text-[14px] font-black text-gray-500 uppercase tracking-widest mb-3 px-4">Clients</p>
+                <div className="space-y-1">
+                  <button 
+                    onClick={() => setIsClientsOpen(!isClientsOpen)}
+                    className={`flex items-center justify-between px-4 py-3.5 rounded-2xl transition-all w-full text-left ${
+                      ['clients', 'credit_history', 'deadlines'].includes(activeTab)
+                        ? 'bg-red-600 text-white shadow-lg' 
+                        : 'text-gray-400 hover:bg-gray-800 hover:text-white'
+                    }`}
+                  >
+                    <div className="flex items-center gap-4">
+                      <Users size={20} />
+                      <span className="font-bold text-lg tracking-tight">Menu Client</span>
+                    </div>
+                    <ChevronDown size={16} className={`transition-transform ${isClientsOpen ? 'rotate-180' : ''}`} />
+                  </button>
+                  
+                  {isClientsOpen && (
+                    <div className="ml-6 mt-1 space-y-1 border-l-2 border-gray-700 pl-4">
+                      <button 
+                        onClick={() => { navigate('/dashboard/clients'); closeSidebar(); }}
+                        className={`block w-full text-left px-4 py-2 rounded-xl text-lg font-bold transition-all ${activeTab === 'clients' ? 'bg-red-600 text-white shadow-md' : 'text-gray-400 hover:bg-gray-800 hover:text-white'}`}
+                      >
+                        Liste
+                      </button>
+                      <button
+                       onClick={() => { navigate('/dashboard/credit_history'); closeSidebar(); }}
+                       className={`block w-full text-left px-4 py-2 rounded-xl text-lg font-bold transition-all ${activeTab === 'credit_history' ? 'bg-red-600 text-white shadow-md' : 'text-gray-400 hover:bg-gray-800 hover:text-white'}`}
+                      >
+                       Historique client
+                      </button>
+                      <button
+                       onClick={() => { navigate('/dashboard/deadlines'); closeSidebar(); }}
+                       className={`block w-full text-left px-4 py-2 rounded-xl text-lg font-bold transition-all ${activeTab === 'deadlines' ? 'bg-red-600 text-white shadow-md' : 'text-gray-400 hover:bg-gray-800 hover:text-white'}`}
+                      >
+                       Echéancier
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* GROUPE 4: Fournisseurs */}
+              <div>
+                <p className="text-[14px] font-black text-gray-500 uppercase tracking-widest mb-3 px-4">Fournisseurs</p>
+                <div className="space-y-1">
+                  <button 
+                    onClick={() => setIsSuppliersOpen(!isSuppliersOpen)}
+                    className={`flex items-center justify-between px-4 py-3.5 rounded-2xl transition-all w-full text-left ${
+                      ['suppliers', 'supplier-history', 'supplier_credits'].includes(activeTab)
+                        ? 'bg-red-600 text-white shadow-lg' 
+                        : 'text-gray-400 hover:bg-gray-800 hover:text-white'
+                    }`}
+                  >
+                    <div className="flex items-center gap-4">
+                      <Users size={20} />
+                      <span className="font-bold text-lg tracking-tight">Menu Fournisseur</span>
+                    </div>
+                    <ChevronDown size={16} className={`transition-transform ${isSuppliersOpen ? 'rotate-180' : ''}`} />
+                  </button>
+                  
+                  {isSuppliersOpen && (
+                    <div className="ml-6 mt-1 space-y-1 border-l-2 border-gray-700 pl-4">
+                      <button 
+                        onClick={() => { navigate('/dashboard/suppliers'); closeSidebar(); }}
+                        className={`block w-full text-left px-4 py-2 rounded-xl text-lg font-bold transition-all ${activeTab === 'suppliers' ? 'bg-red-600 text-white shadow-md' : 'text-gray-400 hover:bg-gray-800 hover:text-white'}`}
+                      >
+                        Liste Fournisseurs
+                      </button>
+                      <button 
+                        onClick={() => { navigate('/dashboard/supplier_credits'); closeSidebar(); }}
+                        className={`block w-full text-left px-4 py-2 rounded-xl text-lg font-bold transition-all ${activeTab === 'supplier_credits' ? 'bg-red-600 text-white shadow-md' : 'text-gray-400 hover:bg-gray-800 hover:text-white'}`}
+                      >
+                        Crédit Fournisseurs
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* GROUPE 4: Stock & Logistique */}
+              <div>
+                <p className="text-[14px] font-black text-gray-500 uppercase tracking-widest mb-3 px-4">Stock & Logistique</p>
+                <div className="space-y-1">
+                  <div className="space-y-1">
+                    <button 
+                      onClick={() => setIsInventoryOpen(!isInventoryOpen)}
+                      className={`flex items-center justify-between px-4 py-3.5 rounded-2xl transition-all w-full text-left ${
+                        ['inventory', 'products', 'stock-entry', 'historique'].includes(activeTab)
+                          ? 'bg-red-600 text-white shadow-lg' 
+                          : 'text-gray-400 hover:bg-gray-800 hover:text-white'
+                      }`}
+                    >
+                      <div className="flex items-center gap-4">
+                        <Package size={20} />
+                        <span className="font-bold text-lg tracking-tight">Gestion Stock</span>
+                      </div>
+                      <ChevronDown size={16} className={`transition-transform ${isInventoryOpen ? 'rotate-180' : ''}`} />
+                    </button>
+                    
+                    {isInventoryOpen && (
+                      <div className="ml-6 mt-1 space-y-1 border-l-2 border-gray-700 pl-4">
+                        <button 
+                          onClick={() => handleProtectedNavigation('/dashboard/products')}
+                          className={`block w-full text-left px-4 py-2 rounded-xl text-lg font-bold transition-all ${activeTab === 'products' ? 'bg-red-600 text-white shadow-md' : 'text-gray-400 hover:bg-gray-800 hover:text-white'}`}
+                        >
+                          Stock Principal
+                        </button>
+                        <button 
+                          onClick={() => handleProtectedNavigation('/dashboard/inventory')}
+                          className={`block w-full text-left px-4 py-2 rounded-xl text-lg font-bold transition-all ${activeTab === 'inventory' ? 'bg-red-600 text-white shadow-md' : 'text-gray-400 hover:bg-gray-800 hover:text-white'}`}
+                        >
+                          Stock par Dépôt
+                        </button>
+                        <button 
+                          onClick={() => handleProtectedNavigation('/dashboard/stock-entry')}
+                          className={`block w-full text-left px-4 py-2 rounded-xl text-lg font-bold transition-all ${activeTab === 'stock-entry' ? 'bg-red-600 text-white shadow-md' : 'text-gray-400 hover:bg-gray-800 hover:text-white'}`}
+                        >
+                          Entrée de Stock
+                        </button>
+                        <button 
+                          onClick={() => handleProtectedNavigation('/dashboard/historique')}
+                          className={`block w-full text-left px-4 py-2 rounded-xl text-lg font-bold transition-all ${activeTab === 'historique' ? 'bg-red-600 text-white shadow-md' : 'text-gray-400 hover:bg-gray-800 hover:text-white'}`}
+                        >
+                          Historique
+                        </button>
+                        <button 
+                          onClick={() => handleProtectedNavigation('/dashboard/stock-transfer')}
+                          className={`block w-full text-left px-4 py-2 rounded-xl text-lg font-bold transition-all ${activeTab === 'stock-transfer' ? 'bg-red-600 text-white shadow-md' : 'text-gray-400 hover:bg-gray-800 hover:text-white'}`}
+                        >
+                          Transfert
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                  <NavItem icon={<Box size={20} />} label="Conversions" active={activeTab === 'conversions'} onClick={() => { navigate('/dashboard/conversions'); closeSidebar(); }} />
+                  <NavItem icon={<Tag size={20} />} label="Catégories" active={activeTab === 'categories'} onClick={() => { navigate('/dashboard/categories'); closeSidebar(); }} />
+                  <NavItem icon={<Building2 size={20} />} label="Dépôts" active={activeTab === 'depots'} onClick={() => { navigate('/dashboard/depots'); closeSidebar(); }} />
+                </div>
+              </div>
+
+              <div>
+                <p className="text-[14px] font-black text-gray-500 uppercase tracking-widest mb-3 px-4">Système</p>
+                <div className="space-y-1">
+                  <NavItem icon={<Users size={20} />} label="Utilisateurs & Accès" active={activeTab === 'user-management'} onClick={() => { navigate('/dashboard/user-management'); closeSidebar(); }} />
+                  <NavItem icon={<SettingsIcon size={20} />} label="Paramètres" active={activeTab === 'settings'} onClick={() => { navigate('/dashboard/settings'); closeSidebar(); }} />
+                </div>
+              </div>
+            </>
+          )}
+        </nav>
+
+        <div className="p-8 border-t border-gray-800 shrink-0 bg-black">
           <div className="flex items-center gap-3 mb-6">
             <div className="w-10 h-10 bg-gray-800 rounded-full flex items-center justify-center text-white font-bold">
               {session.user.email[0].toUpperCase()}
@@ -489,7 +488,7 @@ export default function Dashboard({ session }) {
                 {userRole === 'superAdmin' ? 'Super Administrateur' : 
                  userRole === 'serveur' ? 'Serveur' :
                  userRole === 'cuisine' ? 'Cuisine' :
-                 userRole?.startsWith('Caissier') ? 'Caissier' : 'Personnel'}
+                 userRole?.toLowerCase().startsWith('caissier') ? 'Caissier' : 'Personnel'}
               </p>
             </div>
           </div>
@@ -700,7 +699,7 @@ export default function Dashboard({ session }) {
                 <Navigate to="/dashboard/restaurant-order" replace />
               ) : userRole === 'cuisine' ? (
                 <Navigate to="/dashboard/restaurant-kitchen" replace />
-              ) : userRole?.startsWith('Caissier') ? (
+              ) : userRole?.toLowerCase().startsWith('caissier') ? (
                 <Navigate to="/dashboard/restaurant-pos" replace />
               ) : (
                 <div className="flex items-center justify-center h-full">Chargement...</div>
@@ -719,8 +718,13 @@ export default function Dashboard({ session }) {
                 : <Navigate to="/dashboard" replace />
             } />
             <Route path="restaurant-pos" element={
-              (userRole === 'superAdmin' || userRole?.startsWith('Caissier')) 
+              (userRole === 'superAdmin' || userRole?.toLowerCase().startsWith('caissier')) 
                 ? <RestaurantPOS session={session} selectedDepotId={selectedDepotId} />
+                : <Navigate to="/dashboard" replace />
+            } />
+            <Route path="sales-analytics" element={
+              (userRole === 'superAdmin' || userRole?.toLowerCase().startsWith('caissier')) 
+                ? <SalesDashboard />
                 : <Navigate to="/dashboard" replace />
             } />
             
@@ -746,7 +750,6 @@ export default function Dashboard({ session }) {
                 <Route path="credit_history" element={<CreditHistory />} />
                 <Route path="supplier_credits" element={<SupplierCredits />} />
                 <Route path="decaissement" element={<Decaissement session={session} />} />
-                <Route path="sales-analytics" element={<SalesDashboard />} />
                 <Route path="historique" element={<StockHistory />} />
                 <Route path="conversions" element={<Conversions session={session} />} />
                 <Route path="depots" element={<Depots />} />

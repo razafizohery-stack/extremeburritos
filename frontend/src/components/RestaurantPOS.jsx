@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { supabase } from '../supabaseClient';
-import { ShoppingCart, CheckCircle, Loader2, Utensils, Search, CreditCard, ChevronRight, X, LayoutGrid, Clock, AlertCircle } from 'lucide-react';
+import { ShoppingCart, CheckCircle, Loader2, Utensils, Search, CreditCard, ChevronRight, X, LayoutGrid, Clock, AlertCircle, Printer } from 'lucide-react';
 
 export default function RestaurantPOS({ session, selectedDepotId }) {
   const [readyOrders, setReadyOrders] = useState([]);
@@ -8,6 +9,18 @@ export default function RestaurantPOS({ session, selectedDepotId }) {
   const [isProcessing, setIsProcessing] = useState(false);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
+  const [previewInvoice, setPreviewInvoice] = useState(null);
+  const [currentDepotInfo, setCurrentDepotInfo] = useState(null);
+
+  // Fetch Depot Info
+  useEffect(() => {
+    const fetchDepot = async () => {
+        if (!selectedDepotId) return;
+        const { data } = await supabase.from('depots').select('*').eq('id', selectedDepotId).single();
+        if (data) setCurrentDepotInfo(data);
+    };
+    fetchDepot();
+  }, [selectedDepotId]);
 
   const filteredOrders = readyOrders.filter(order => 
     order.table_name.toLowerCase().includes(searchTerm.toLowerCase())
@@ -30,6 +43,13 @@ export default function RestaurantPOS({ session, selectedDepotId }) {
     }
 
     const ordersWithProducts = await Promise.all((data || []).map(async (order) => {
+        // Fetch invoice number
+        const { data: invData } = await supabase
+            .from('factures')
+            .select('number')
+            .eq('order_reference', order.order_reference)
+            .maybeSingle();
+
         const itemsWithNames = await Promise.all(order.commande_items.map(async (item) => {
             if (item.item_type === 'product') {
                 const { data: prodData } = await supabase
@@ -48,7 +68,7 @@ export default function RestaurantPOS({ session, selectedDepotId }) {
             }
             return { ...item, produits: { name: 'Article' } };
         }));
-        return { ...order, commande_items: itemsWithNames };
+        return { ...order, commande_items: itemsWithNames, invoice_number: invData?.number || '---' };
     }));
 
     setReadyOrders(ordersWithProducts);
@@ -102,9 +122,11 @@ export default function RestaurantPOS({ session, selectedDepotId }) {
       // 2. Update existing invoice
       const { data: invoice } = await supabase
         .from('factures')
-        .select('id')
+        .select('id, number')
         .eq('order_reference', selectedOrder.order_reference) // Use ref
         .maybeSingle();
+
+      let invoiceNumber = invoice?.number || '---';
 
       if (invoice) {
         await supabase
@@ -157,6 +179,23 @@ export default function RestaurantPOS({ session, selectedDepotId }) {
       }
 
       alert('Encaissement réussi !');
+      
+      // Prepare invoice preview data
+      setPreviewInvoice({
+        table_name: selectedOrder.table_name,
+        invoice_number: invoiceNumber,
+        items: selectedOrder.commande_items.map(item => ({
+            name: item.produits?.name || 'Article',
+            quantity: item.quantity,
+            price: item.unit_price,
+            total: item.quantity * item.unit_price
+        })),
+        total_amount: selectedOrder.total_amount,
+        payment_method: paymentMethod,
+        payment_ref: paymentRef,
+        date: new Date().toLocaleString('fr-FR')
+      });
+
       setSelectedOrder(null);
       setPaymentMethod('cash');
       setPaymentRef('');
@@ -218,6 +257,7 @@ export default function RestaurantPOS({ session, selectedDepotId }) {
               >
                 <div className="flex flex-col gap-0.5">
                   <div className="text-lg font-bold tracking-tight uppercase">{order.table_name}</div>
+                  <div className="text-[10px] font-black text-red-600 mb-1">{order.invoice_number}</div>
                   <div className={`flex items-center gap-2 text-[9px] font-bold uppercase tracking-widest ${selectedOrder?.id === order.id ? 'text-white/60' : 'text-gray-400'}`}>
                     {order.status === 'ready' ? <CheckCircle size={9} /> : <Clock size={9} />}
                     {order.status === 'ready' ? 'Prête' : 'En Cuisine'}
@@ -438,6 +478,122 @@ export default function RestaurantPOS({ session, selectedDepotId }) {
           )}
         </div>
       </div>
+
+      {/* Invoice Ticket Preview Modal */}
+      {previewInvoice && createPortal(
+        <div className="fixed inset-0 z-[150] flex items-center justify-center bg-black/80 backdrop-blur-md p-4">
+          <style>{`
+            @media print {
+              @page { margin: 0 !important; size: 80mm auto; }
+              #root { display: none !important; }
+              body, html { 
+                margin: 0 !important;
+                padding: 0 !important;
+                background: white !important;
+              }
+              #printable-invoice-ticket {
+                visibility: visible !important;
+                display: block !important;
+                width: 65mm !important;
+                margin: 0 auto !important;
+                padding: 10mm !important;
+                font-family: 'Courier New', Courier, monospace !important;
+                color: black !important;
+              }
+              .no-print { display: none !important; }
+            }
+          `}</style>
+
+          <div className="bg-white text-black w-full max-w-[400px] max-h-[90vh] flex flex-col rounded-3xl overflow-hidden shadow-2xl">
+            <div className="p-4 border-b border-gray-100 flex justify-between items-center bg-gray-50 no-print">
+               <h3 className="font-black uppercase text-xs tracking-widest text-gray-400">Facture Client</h3>
+               <button onClick={() => setPreviewInvoice(null)} className="p-2 hover:bg-gray-200 rounded-full transition-colors"><X size={20}/></button>
+            </div>
+
+            <div id="printable-invoice-ticket" className="flex-1 overflow-y-auto p-8 font-mono text-[14px]">
+               <div className="text-center mb-6">
+                  {/* Logo - assuming logo.jpeg exists in public/ */}
+                  <div className="flex justify-center mb-4">
+                     <img src="/logo.jpeg" alt="Logo" className="w-20 h-20 object-cover rounded-full border-2 border-black" onError={(e) => e.target.style.display='none'} />
+                  </div>
+                  <h2 className="text-xl font-black uppercase mb-1">{currentDepotInfo?.name || 'Extrême Buritos'}</h2>
+                  <p className="text-[10px] uppercase opacity-60 font-bold">{currentDepotInfo?.address || 'Antananarivo'}</p>
+                  <p className="text-[10px] uppercase opacity-60 font-bold">Tél: {currentDepotInfo?.phone || '---'}</p>
+                  
+                  <div className="my-4 border-t border-dashed border-black/20"></div>
+                  
+                  <div className="bg-gray-100 py-3 px-4 rounded-xl space-y-1 mb-4">
+                      <h3 className="font-black text-lg uppercase leading-none">FACTURE</h3>
+                      <p className="text-xs font-black text-red-600">N° {previewInvoice.invoice_number}</p>
+                      <div className="flex justify-between items-center text-[10px] font-bold uppercase opacity-60 pt-1">
+                          <span>{previewInvoice.table_name}</span>
+                          <span>{previewInvoice.date.split(' ')[0]}</span>
+                      </div>
+                  </div>
+               </div>
+
+               <div className="space-y-3">
+                  <div className="flex justify-between font-black text-[10px] uppercase border-b-2 border-black pb-1">
+                     <span>Désignation</span>
+                     <span className="pr-2">Total</span>
+                  </div>
+                  {previewInvoice.items.map((item, idx) => (
+                    <div key={idx} className="flex justify-between items-start text-sm border-b border-dashed border-black/5 pb-1">
+                       <div className="flex flex-col flex-1 pr-2">
+                          <span className="font-bold break-words">{item.name}</span>
+                          <span className="text-[11px] opacity-60">{item.quantity} x {item.price.toLocaleString()}</span>
+                       </div>
+                       <span className="font-bold whitespace-nowrap">{item.total.toLocaleString()}</span>
+                    </div>
+                  ))}
+               </div>
+
+               <div className="my-6 border-t-2 border-dashed border-black"></div>
+
+               <div className="space-y-4">
+                  <div className="flex flex-col items-center justify-center gap-1 bg-black text-white py-4 rounded-2xl">
+                      <span className="text-[10px] font-black uppercase opacity-60">TOTAL À PAYER</span>
+                      <div className="flex items-baseline gap-1">
+                        <span className="text-3xl font-black">{previewInvoice.total_amount.toLocaleString()}</span>
+                        <span className="text-sm font-bold uppercase">Ar</span>
+                      </div>
+                  </div>
+                  
+                  <div className="grid grid-cols-2 gap-4 px-2">
+                      <div className="flex flex-col">
+                          <span className="text-[8px] font-black uppercase opacity-40">Mode</span>
+                          <span className="text-[10px] font-black uppercase">{previewInvoice.payment_method === 'cash' ? 'Espèces' : 'Mobile Money'}</span>
+                      </div>
+                      <div className="flex flex-col text-right">
+                          <span className="text-[8px] font-black uppercase opacity-40">Heure</span>
+                          <span className="text-[10px] font-black uppercase">{previewInvoice.date.split(' ')[1]}</span>
+                      </div>
+                  </div>
+               </div>
+
+               <div className="mt-8 text-center text-[10px] uppercase opacity-40 font-bold border-t border-dashed border-black/20 pt-4">
+                  <p>*** Merci de votre visite ***</p>
+                  <p>À bientôt chez nous !</p>
+               </div>
+            </div>
+
+            <div className="p-6 bg-gray-50 border-t border-gray-100 flex gap-4 no-print">
+               <button 
+                onClick={() => window.print()}
+                className="flex-1 py-4 bg-red-600 text-white rounded-2xl font-black text-xs uppercase flex items-center justify-center gap-2 hover:bg-red-700 transition-all shadow-lg shadow-red-200"
+               >
+                 <Printer size={18}/> Imprimer Facture
+               </button>
+               <button 
+                onClick={() => setPreviewInvoice(null)}
+                className="flex-1 py-4 bg-gray-200 text-gray-700 rounded-2xl font-black text-xs uppercase flex items-center justify-center gap-2 hover:bg-gray-300 transition-all"
+               >
+                 Fermer
+               </button>
+            </div>
+          </div>
+        </div>
+      , document.body)}
     </div>
   );
 }

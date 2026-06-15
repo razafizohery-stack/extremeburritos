@@ -446,7 +446,7 @@ export default function OrderTaker({ session, selectedDepotId }) {
               >
                 Menus
               </button>
-              {categories.map(cat => (
+              {categories.filter(c => c.name.toLowerCase() !== 'huile').map(cat => (
                 <button 
                   key={cat.id}
                   onClick={() => setSelectedCategory(cat.id)}

@@ -228,7 +228,7 @@ export default function Dashboard({ session }) {
       case 'dashboard': return "Vue d'ensemble";
       case 'pos': return "Caisse / Vente Directe";
       case 'restaurant-order': return "Prise de Commande (Serveur)";
-      case 'restaurant-kitchen': return "Cuisine (Moniteur)";
+      case 'restaurant-kitchen': return "Moniteur";
       case 'restaurant-pos': return "Caisse Restaurant (Encaissement)";
       case 'inventory': return "Stock & Denrées (Appro)";
       case 'stock-entry': return "Entrée de Stock";
@@ -306,8 +306,8 @@ export default function Dashboard({ session }) {
               {(userRole === 'superAdmin' || userRole === 'serveur') && (
                 <NavItem icon={<Utensils size={18} />} label="Prise de Commande" active={activeTab === 'restaurant-order'} onClick={() => { navigate('/dashboard/restaurant-order'); closeSidebar(); }} />
               )}
-              {(userRole === 'superAdmin' || userRole === 'cuisine') && (
-                <NavItem icon={<Clock size={18} />} label="Cuisine" active={activeTab === 'restaurant-kitchen'} onClick={() => { navigate('/dashboard/restaurant-kitchen'); closeSidebar(); }} />
+              {(userRole === 'superAdmin' || userRole === 'moniteur') && (
+                <NavItem icon={<Clock size={18} />} label="Moniteur" active={activeTab === 'restaurant-kitchen'} onClick={() => { navigate('/dashboard/restaurant-kitchen'); closeSidebar(); }} />
               )}
             </div>
           </div>
@@ -699,7 +699,7 @@ export default function Dashboard({ session }) {
                 </div>
               ) : userRole === 'serveur' ? (
                 <Navigate to="/dashboard/restaurant-order" replace />
-              ) : userRole === 'cuisine' ? (
+              ) : userRole === 'moniteur' ? (
                 <Navigate to="/dashboard/restaurant-kitchen" replace />
               ) : userRole?.toLowerCase().startsWith('caissier') ? (
                 <Navigate to="/dashboard/restaurant-pos" replace />

@@ -190,6 +190,7 @@ export default function RestaurantPOS({ session, selectedDepotId }) {
       alert('Encaissement réussi !');
       
       // Prepare invoice preview data
+      console.log('Finalizing payment, invoiceNumber:', invoiceNumber);
       setPreviewInvoice({
         table_name: selectedOrder.table_name,
         invoice_number: invoiceNumber,
@@ -351,10 +352,12 @@ export default function RestaurantPOS({ session, selectedDepotId }) {
                           <div key={item.id} className="bg-white p-3 rounded-xl border border-gray-100 flex justify-between items-center text-[13px]">
                             <div className="flex items-center gap-1">
                                 <span className="font-bold text-gray-700 uppercase truncate pr-4">{item.produits?.name}</span>
-                                {item.produits?.contains_pork ? (
-                                    <span className="text-[8px] font-black text-red-600 bg-red-50 px-1 rounded">AP</span>
-                                ) : (
-                                    <span className="text-[8px] font-black text-emerald-600 bg-emerald-50 px-1 rounded">SP</span>
+                                {item.item_type === 'menu' && (
+                                    item.produits?.contains_pork ? (
+                                        <span className="text-[8px] font-black text-red-600 bg-red-50 px-1 rounded">AP</span>
+                                    ) : (
+                                        <span className="text-[8px] font-black text-emerald-600 bg-emerald-50 px-1 rounded">SP</span>
+                                    )
                                 )}
                             </div>
                             <span className="text-gray-400 whitespace-nowrap">x{item.quantity} • {Number(item.quantity * item.unit_price).toLocaleString()} Ar</span>

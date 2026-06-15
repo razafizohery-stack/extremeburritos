@@ -163,10 +163,12 @@ export default function KitchenMonitor({ session }) {
                 <span className="font-bold text-gray-800 text-xs uppercase tracking-tight">
                     {item.produits?.name || 'Menu'}
                 </span>
-                {item.produits?.contains_pork ? (
-                    <span className="text-[8px] font-black text-red-600 bg-red-50 px-1 rounded">AP</span>
-                ) : (
-                    <span className="text-[8px] font-black text-emerald-600 bg-emerald-50 px-1 rounded">SP</span>
+                {item.item_type === 'menu' && (
+                    item.produits?.contains_pork ? (
+                        <span className="text-[8px] font-black text-red-600 bg-red-50 px-1 rounded">AP</span>
+                    ) : (
+                        <span className="text-[8px] font-black text-emerald-600 bg-emerald-50 px-1 rounded">SP</span>
+                    )
                 )}
                 </div>
                 {item.is_additional && (
@@ -214,7 +216,7 @@ export default function KitchenMonitor({ session }) {
             <Utensils size={24} className="text-white" />
           </div>
           <div>
-            <h1 className="text-xl font-black text-gray-900 tracking-tight uppercase">Cuisine Station</h1>
+            <h1 className="text-xl font-black text-gray-900 tracking-tight uppercase">Moniteur</h1>
             <p className="text-[10px] font-bold text-gray-400 uppercase tracking-[0.2em]">Flux de préparation en temps réel</p>
           </div>
         </div>

@@ -376,7 +376,7 @@ export default function OrderTaker({ session, selectedDepotId }) {
                     `}
                   >
                     {activeTables.includes(table) && (
-                      <span className="absolute top-2 right-2 w-2 h-2 bg-emerald-500 rounded-full animate-pulse" />
+                      <span className="absolute top-2 right-2 text-[8px] font-black text-emerald-600 bg-emerald-100 px-1 rounded">Occupé</span>
                     )}
                     <span className="text-xl font-black">{table.replace('Table ', '')}</span>
                     <span className="text-[9px] font-bold uppercase opacity-60">Table</span>

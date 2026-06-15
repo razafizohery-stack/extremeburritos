@@ -219,29 +219,29 @@ export default function RestaurantPOS({ session, selectedDepotId }) {
 
   return (
     <div className="flex flex-col h-full bg-gray-50 overflow-hidden selection:bg-red-200">
-      <div className="flex flex-col md:flex-row h-full overflow-hidden">
+      <div className="flex flex-col lg:flex-row h-full overflow-hidden">
         
         {/* Left Sidebar: Active Orders */}
-        <div className={`w-full md:w-80 lg:w-[360px] flex flex-col gap-5 p-6 border-r border-gray-200 bg-white shrink-0 ${selectedOrder ? 'hidden md:flex' : 'flex'}`}>
-          <div className="shrink-0">
+        <div className={`w-full lg:w-72 xl:w-80 flex flex-col gap-4 p-4 md:p-6 border-r border-gray-200 bg-white shrink-0 ${selectedOrder ? 'hidden lg:flex' : 'flex'}`}>
+          <div className="shrink-0 px-2">
             <h3 className="text-xl font-bold text-gray-800 uppercase tracking-tight flex items-center gap-3">
-              <LayoutGrid className="text-red-600" size={24} /> Commandes
+              <LayoutGrid className="text-red-600" size={22} /> Commandes
             </h3>
-            <p className="text-[10px] font-semibold text-gray-400 uppercase mt-1 tracking-widest">Suivi & Encaissement</p>
+            <p className="text-[9px] font-semibold text-gray-400 uppercase mt-1 tracking-widest">Suivi & Encaissement</p>
           </div>
           
           <div className="relative shrink-0">
-              <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
+              <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
               <input 
                 type="text" 
                 placeholder="N° de Table..." 
-                className="w-full pl-11 pr-4 py-3 bg-gray-50 rounded-2xl font-semibold outline-none border-2 border-transparent focus:border-red-500 transition-all text-base shadow-inner"
+                className="w-full pl-11 pr-4 py-2.5 bg-gray-50 rounded-xl font-semibold outline-none border-2 border-transparent focus:border-red-500 transition-all text-sm shadow-inner"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
               />
           </div>
 
-          <div className="flex-1 overflow-y-auto space-y-3 pr-1 no-scrollbar">
+          <div className="flex-1 overflow-y-auto space-y-2 pr-1 no-scrollbar pb-10">
             {filteredOrders.length > 0 ? filteredOrders.map(order => (
               <button
                 key={order.id}
@@ -249,23 +249,23 @@ export default function RestaurantPOS({ session, selectedDepotId }) {
                   setSelectedOrder(order);
                   setPaymentMethod('cash');
                 }}
-                className={`w-full p-5 rounded-2xl text-left transition-all border-2 flex justify-between items-center group active:scale-[0.98] ${
+                className={`w-full p-4 rounded-xl text-left transition-all border-2 flex justify-between items-center group active:scale-[0.98] ${
                   selectedOrder?.id === order.id 
                   ? 'bg-red-600 text-white border-red-600 shadow-lg shadow-red-200/50' 
                   : 'bg-white text-gray-800 border-gray-100 hover:border-red-100 hover:bg-red-50/30'
                 }`}
               >
                 <div className="flex flex-col gap-0.5">
-                  <div className="text-lg font-bold tracking-tight uppercase">{order.table_name}</div>
-                  <div className="text-[10px] font-black text-red-600 mb-1">{order.invoice_number}</div>
-                  <div className={`flex items-center gap-2 text-[9px] font-bold uppercase tracking-widest ${selectedOrder?.id === order.id ? 'text-white/60' : 'text-gray-400'}`}>
-                    {order.status === 'ready' ? <CheckCircle size={9} /> : <Clock size={9} />}
+                  <div className="text-base font-bold tracking-tight uppercase">{order.table_name}</div>
+                  <div className="text-[9px] font-black text-red-600 mb-0.5">{order.invoice_number}</div>
+                  <div className={`flex items-center gap-2 text-[8px] font-bold uppercase tracking-widest ${selectedOrder?.id === order.id ? 'text-white/60' : 'text-gray-400'}`}>
+                    {order.status === 'ready' ? <CheckCircle size={8} /> : <Clock size={8} />}
                     {order.status === 'ready' ? 'Prête' : 'En Cuisine'}
                   </div>
                 </div>
                 <div className="flex flex-col items-end gap-0.5">
-                  <div className="text-base font-bold tracking-tight">{Number(order.total_amount || 0).toLocaleString()} Ar</div>
-                  <span className={`text-[8px] font-bold uppercase px-2 py-0.5 rounded-lg ${
+                  <div className="text-sm font-bold tracking-tight">{Number(order.total_amount || 0).toLocaleString()} Ar</div>
+                  <span className={`text-[7px] font-bold uppercase px-1.5 py-0.5 rounded-md ${
                     order.status === 'ready' 
                     ? (selectedOrder?.id === order.id ? 'bg-white/20 text-white' : 'bg-emerald-100 text-emerald-700')
                     : (selectedOrder?.id === order.id ? 'bg-white/20 text-white' : 'bg-orange-100 text-orange-700')
@@ -276,80 +276,72 @@ export default function RestaurantPOS({ session, selectedDepotId }) {
               </button>
             )) : (
               <div className="flex flex-col items-center justify-center py-20 text-gray-300 opacity-40">
-                <Utensils size={48} className="mb-3" />
-                <p className="font-bold uppercase tracking-[0.2em] text-[10px]">Aucune commande</p>
+                <Utensils size={40} className="mb-3" />
+                <p className="font-bold uppercase tracking-[0.2em] text-[9px]">Aucune commande</p>
               </div>
             )}
           </div>
         </div>
 
         {/* Right Content: Details & Payment */}
-        <div className={`flex-1 flex flex-col bg-gray-50 overflow-hidden ${!selectedOrder ? 'hidden md:flex' : 'flex'}`}>
+        <div className={`flex-1 flex flex-col bg-gray-50 overflow-hidden ${!selectedOrder ? 'hidden lg:flex' : 'flex'}`}>
           {selectedOrder ? (
             <div className="flex-1 flex flex-col min-h-0 animate-in fade-in slide-in-from-right duration-300">
-              {/* Desktop Header */}
-              <div className="p-8 md:p-10 bg-gray-900 text-white shrink-0 relative overflow-hidden">
-                <div className="absolute top-0 right-0 p-10 opacity-5">
-                   <CreditCard size={160} />
+              {/* Header section (adapted for smaller screens) */}
+              <div className="p-6 md:p-8 bg-gray-900 text-white shrink-0 relative overflow-hidden">
+                <div className="absolute top-0 right-0 p-8 opacity-5">
+                   <CreditCard size={120} />
                 </div>
                 
-                <div className="relative z-10 flex flex-col lg:flex-row lg:items-end justify-between gap-6">
-                  <div className="space-y-3">
+                <div className="relative z-10 flex flex-col lg:flex-row lg:items-end justify-between gap-4">
+                  <div className="space-y-2">
                     <button 
                       onClick={() => setSelectedOrder(null)}
-                      className="md:hidden flex items-center gap-2 text-gray-400 font-bold text-[10px] uppercase tracking-widest mb-3 bg-white/5 px-3 py-1.5 rounded-xl"
+                      className="lg:hidden flex items-center gap-2 text-gray-400 font-bold text-[10px] uppercase tracking-widest mb-3 bg-white/5 px-3 py-1.5 rounded-xl"
                     >
                       <X size={14} /> Retour à la liste
                     </button>
                     
                     <div className="flex items-center gap-2">
-                      <span className="bg-red-600 text-white px-2.5 py-0.5 rounded-lg text-[9px] font-bold uppercase tracking-widest shadow-lg shadow-red-900/50">Details</span>
-                      <span className="text-gray-500 font-semibold text-[10px] uppercase tracking-[0.2em]">REF: {selectedOrder.id.slice(-6).toUpperCase()}</span>
+                      <span className="bg-red-600 text-white px-2 py-0.5 rounded text-[8px] font-bold uppercase tracking-widest shadow-lg shadow-red-900/50">Details</span>
+                      <span className="text-gray-500 font-semibold text-[9px] uppercase tracking-[0.2em]">REF: {selectedOrder.id.slice(-6).toUpperCase()}</span>
                     </div>
-                    <h2 className="text-4xl md:text-5xl font-bold uppercase tracking-tight leading-none">{selectedOrder.table_name}</h2>
+                    <h2 className="text-3xl md:text-4xl font-bold uppercase tracking-tight leading-none">{selectedOrder.table_name}</h2>
                     <div className="flex items-center gap-3">
-                       <div className={`flex items-center gap-2 px-2.5 py-1 rounded-full text-[9px] font-bold uppercase tracking-widest ${
+                       <div className={`flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[8px] font-bold uppercase tracking-widest ${
                          selectedOrder.status === 'ready' ? 'bg-emerald-500/20 text-emerald-500' : 'bg-orange-500/20 text-orange-500'
                        }`}>
-                         {selectedOrder.status === 'ready' ? <CheckCircle size={12} /> : <Clock size={12} />}
-                         {selectedOrder.status === 'ready' ? 'Prêt pour paiement' : 'En préparation'}
+                         {selectedOrder.status === 'ready' ? <CheckCircle size={10} /> : <Clock size={10} />}
+                         {selectedOrder.status === 'ready' ? 'Prêt' : 'En Cuisine'}
                        </div>
-                       <span className="text-gray-500 font-semibold text-[10px] uppercase tracking-widest">{selectedOrder.commande_items?.length} articles</span>
                     </div>
                   </div>
                   
-                  <div className="bg-white/5 backdrop-blur-md p-6 rounded-[2rem] border border-white/5 flex flex-col items-end min-w-[260px]">
-                    <p className="text-[9px] font-bold text-gray-500 uppercase tracking-[0.3em] mb-2">Total à encaisser</p>
-                    <div className="flex items-end gap-1.5">
-                      <span className="text-4xl md:text-5xl font-bold text-white tracking-tight leading-none">{Number(selectedOrder.total_amount || 0).toLocaleString()}</span>
-                      <span className="text-lg font-bold text-red-500 mb-1 uppercase">Ar</span>
+                  <div className="bg-white/5 backdrop-blur-md p-4 md:p-6 rounded-[1.5rem] border border-white/5 flex flex-col items-end min-w-[200px]">
+                    <p className="text-[8px] font-bold text-gray-500 uppercase tracking-[0.3em] mb-1">Total à encaisser</p>
+                    <div className="flex items-end gap-1">
+                      <span className="text-3xl md:text-4xl font-bold text-white tracking-tight leading-none">{Number(selectedOrder.total_amount || 0).toLocaleString()}</span>
+                      <span className="text-sm font-bold text-red-500 mb-0.5 uppercase">Ar</span>
                     </div>
                   </div>
                 </div>
               </div>
 
-              {/* Payment Section */}
-              <div className="flex-1 overflow-y-auto p-4 md:p-8 lg:p-10">
-                <div className="max-w-4xl mx-auto space-y-8">
-                   {/* Items List (Simplified) */}
-                   <div className="space-y-4">
+              {/* Payment Section (scrollable content) */}
+              <div className="flex-1 overflow-y-auto p-4 md:p-6">
+                <div className="max-w-2xl mx-auto space-y-6">
+                   {/* Items List (adapted) */}
+                   <div className="space-y-3">
                       <div className="flex items-center gap-4">
                         <div className="h-px flex-1 bg-gray-200"></div>
-                        <h4 className="text-[9px] font-bold text-gray-400 uppercase tracking-[0.2em] whitespace-nowrap">Articles</h4>
+                        <h4 className="text-[8px] font-bold text-gray-400 uppercase tracking-[0.2em] whitespace-nowrap">Articles</h4>
                         <div className="h-px flex-1 bg-gray-200"></div>
                       </div>
-                      <div className="grid gap-2 max-h-48 overflow-y-auto pr-2 no-scrollbar">
+                      <div className="grid gap-1.5 max-h-32 md:max-h-48 overflow-y-auto pr-1 no-scrollbar">
                         {selectedOrder.commande_items.map(item => (
-                          <div key={item.id} className="bg-white p-4 rounded-xl border border-gray-100 flex justify-between items-center text-sm">
-                            <div className="flex flex-col">
-                              <span className="font-bold text-gray-700 uppercase">{item.produits?.name}</span>
-                              {item.is_additional && (
-                                <span className="text-[9px] font-black text-orange-600 uppercase bg-orange-100 px-2 py-0.5 rounded-full mt-1 w-fit">
-                                  Ajout
-                                </span>
-                              )}
-                            </div>
-                            <span className="text-gray-400">x{item.quantity} • {Number(item.quantity * item.unit_price).toLocaleString()} Ar</span>
+                          <div key={item.id} className="bg-white p-3 rounded-xl border border-gray-100 flex justify-between items-center text-[13px]">
+                            <span className="font-bold text-gray-700 uppercase truncate pr-4">{item.produits?.name}</span>
+                            <span className="text-gray-400 whitespace-nowrap">x{item.quantity} • {Number(item.quantity * item.unit_price).toLocaleString()} Ar</span>
                           </div>
                         ))}
                       </div>

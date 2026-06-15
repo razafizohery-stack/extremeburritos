@@ -50,17 +50,17 @@ export default function Login() {
         style={{ backgroundImage: "url('https://images.unsplash.com/photo-1542838132-92c53300491e?q=80&w=2000&auto=format&fit=crop')" }}
       ></div>
 
-      <div className="relative z-10 w-full max-w-md px-6">
+      <div className="relative z-10 w-full max-w-md px-4 sm:px-6">
         {/* Conteneur sombre et propre */}
-        <div className="bg-black-900 border border-gray-800 rounded-[2rem] shadow-2xl p-10">
-          <div className="text-center mb-10">
+        <div className="bg-black-900 border border-gray-800 rounded-[1.5rem] sm:rounded-[2rem] shadow-2xl p-6 sm:p-10">
+          <div className="text-center mb-8 sm:mb-10">
             <div className="mb-4 flex justify-center">
-              <img src="/logo.jpeg" alt="Logo" className="w-24 h-32 rounded-3xl object-cover shadow-xl shadow-black/50" />
+              <img src="/logo.jpeg" alt="Logo" className="w-20 h-28 sm:w-24 sm:h-32 rounded-2xl sm:rounded-3xl object-cover shadow-xl shadow-black/50" />
             </div>
-            <h2 className="text-3xl font-bold tracking-tight">
+            <h2 className="text-2xl sm:text-3xl font-bold tracking-tight">
               <span className="text-white">Extrême</span><span className="text-red-600"> Buritos</span>
             </h2>
-            <p className="mt-1 text-gray-400 text-lg">
+            <p className="mt-1 text-gray-400 text-base sm:text-lg">
               Logiciel de gestion Restaurant
             </p>
           </div>
@@ -68,13 +68,13 @@ export default function Login() {
 
           <form onSubmit={handleAuth} className="space-y-4">
             <div className="space-y-1">
-              <label className="text-base font-bold text-gray-400 uppercase ml-1">Email</label>
+              <label className="text-xs sm:text-base font-bold text-gray-400 uppercase ml-1">Email</label>
               <div className="relative">
-                <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-600" />
+                <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 sm:w-5 sm:h-5 text-gray-600" />
                 <input
                   type="email"
                   required
-                  className="w-full bg-black border border-gray-800 rounded-xl py-3.5 pl-12 pr-4 text-white placeholder:text-gray-600 focus:outline-none focus:ring-2 focus:ring-red-500/50 focus:bg-black transition-all"
+                  className="w-full bg-black border border-gray-800 rounded-xl py-3 sm:py-3.5 pl-11 sm:pl-12 pr-4 text-white text-sm sm:text-base placeholder:text-gray-600 focus:outline-none focus:ring-2 focus:ring-red-500/50 focus:bg-black transition-all"
                   placeholder="votre@email.com"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
@@ -83,13 +83,13 @@ export default function Login() {
             </div>
 
             <div className="space-y-1">
-              <label className="text-base font-bold text-gray-400 uppercase ml-1">Mot de passe</label>
+              <label className="text-xs sm:text-base font-bold text-gray-400 uppercase ml-1">Mot de passe</label>
               <div className="relative">
-                <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-600" />
+                <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 sm:w-5 sm:h-5 text-gray-600" />
                 <input
                   type="password"
                   required
-                  className="w-full bg-black border border-gray-800 rounded-xl py-3.5 pl-12 pr-4 text-white placeholder:text-gray-600 focus:outline-none focus:ring-2 focus:ring-red-500/50 focus:bg-black transition-all"
+                  className="w-full bg-black border border-gray-800 rounded-xl py-3 sm:py-3.5 pl-11 sm:pl-12 pr-4 text-white text-sm sm:text-base placeholder:text-gray-600 focus:outline-none focus:ring-2 focus:ring-red-500/50 focus:bg-black transition-all"
                   placeholder="••••••••"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
@@ -100,14 +100,14 @@ export default function Login() {
             <button
               type="submit"
               disabled={loading}
-              className="w-full bg-red-600 hover:bg-red-700 text-white font-bold py-4 rounded-xl shadow-lg  flex items-center justify-center gap-2 group transition-all mt-6 active:scale-95"
+              className="w-full bg-red-600 hover:bg-red-700 text-white font-bold py-3.5 sm:py-4 rounded-xl shadow-lg flex items-center justify-center gap-2 group transition-all mt-6 active:scale-95 text-sm sm:text-base"
             >
               {loading ? (
                 <Loader2 className="w-5 h-5 animate-spin" />
               ) : (
                 <>
                   <span>{isSignUp ? "S'inscrire" : "Se connecter"}</span>
-                  <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
+                  <ArrowRight className="w-4 h-4 sm:w-5 sm:h-5 group-hover:translate-x-1 transition-transform" />
                 </>
               )}
             </button>
@@ -115,48 +115,39 @@ export default function Login() {
 
           {/* Accès Rapide */}
           <div className="mt-8 space-y-3 pt-6 border-t border-gray-800">
-             <p className="text-[10px] font-black text-gray-500 uppercase tracking-[0.2em] text-center mb-4">Accès Rapide</p>
+             <p className="text-[9px] sm:text-[10px] font-black text-gray-500 uppercase tracking-[0.2em] text-center mb-4 opacity-50">Accès Rapide</p>
              <div className="grid grid-cols-1 gap-2">
                 <div className="grid grid-cols-3 gap-2">
                   <button 
                     onClick={() => { setEmail('caisse@extremeburitos.com'); setPassword('caisse@2026'); }}
-                    className="w-full bg-gray-800/50 hover:bg-gray-800 text-gray-300 text-[9px] font-bold py-2.5 rounded-lg border border-gray-700 transition-all active:scale-[0.98]"
+                    className="w-full bg-gray-800/30 hover:bg-gray-800 text-gray-300 text-[9px] sm:text-[10px] font-bold py-2.5 rounded-lg border border-gray-700/50 transition-all active:scale-[0.98]"
                   >
                     Caisse
                   </button>
                   <button 
-                    onClick={() => { setEmail('razafimandimbyzo618@gmail.com'); setPassword('serveur@1'); }}
-                    className="w-full bg-gray-800/50 hover:bg-gray-800 text-gray-300 text-[9px] font-bold py-2.5 rounded-lg border border-gray-700 transition-all active:scale-[0.98]"
+                    onClick={() => { setEmail('razafimandimbyzo618@gmail.com'); setPassword('serveur'); }}
+                    className="w-full bg-gray-800/30 hover:bg-gray-800 text-gray-300 text-[9px] sm:text-[10px] font-bold py-2.5 rounded-lg border border-gray-700/50 transition-all active:scale-[0.98]"
                   >
                     Serveur
                   </button>
                   <button 
                     onClick={() => { setEmail('cuisine@extremeburitos.com'); setPassword('cuisine@2026'); }}
-                    className="w-full bg-gray-800/50 hover:bg-gray-800 text-gray-300 text-[9px] font-bold py-2.5 rounded-lg border border-gray-700 transition-all active:scale-[0.98]"
+                    className="w-full bg-gray-800/30 hover:bg-gray-800 text-gray-300 text-[9px] sm:text-[10px] font-bold py-2.5 rounded-lg border border-gray-700/50 transition-all active:scale-[0.98]"
                   >
                     Cuisine
                   </button>
                 </div>
                 <button 
-                  onClick={() => { setEmail(''); setPassword(''); }}
-                  className="w-full bg-red-900/10 hover:bg-red-900/20 text-red-400/50 text-[8px] font-bold py-1.5 rounded-lg border border-red-900/10 transition-all active:scale-[0.98] mt-2"
+                  onClick={() => { setEmail('razafimandimbyzo618@gmail.com'); setPassword(''); }}
+                  className="w-full bg-white/5 hover:bg-white/10 text-gray-500 text-[8px] font-bold py-1.5 rounded-lg border border-white/5 transition-all active:scale-[0.98] mt-2"
                 >
                   Admin (Manuel)
                 </button>
              </div>
           </div>
-
-          {/* <div className="mt-8 text-center">
-            <button 
-              onClick={() => setIsSignUp(!isSignUp)}
-              className="text-lg font-medium text-red-600 hover:text-red-800 transition-colors"
-            >
-              {isSignUp ? "Déjà inscrit ? Connexion" : "Nouveau gestionnaire ? Créer un profil"}
-            </button>
-          </div> */}
         </div>
         
-        <p className="mt-8 text-center text-base text-gray-400 font-medium">
+        <p className="mt-8 text-center text-xs sm:text-sm text-gray-500 font-medium">
           © 2026 Extrême Buritos — Système d'Inventaire
         </p>
       </div>

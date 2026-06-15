@@ -256,7 +256,7 @@ export default function Dashboard({ session }) {
   const closeSidebar = () => setIsSidebarOpen(false);
 
   return (
-    <div className="relative min-h-screen flex bg-white font-sans overflow-hidden">
+    <div className="relative h-screen flex bg-white font-sans overflow-hidden">
       {/* Background Image (Idem Login) */}
       <div 
         className="absolute inset-0 z-0 opacity-[0.05] bg-cover bg-center bg-no-repeat pointer-events-none"
@@ -272,42 +272,42 @@ export default function Dashboard({ session }) {
       )}
 
       {/* Sidebar */}
-      <aside className={`fixed ${isPosMode ? '' : 'lg:static'} inset-y-0 left-0 z-30 w-96 bg-black border-r border-gray-800 flex flex-col transform transition-transform duration-300 ease-in-out h-screen ${isSidebarOpen ? 'translate-x-0' : (isPosMode ? '-translate-x-full' : '-translate-x-full lg:translate-x-0')}`}>
-        <div className="p-8 shrink-0">
-          <div className="flex items-center justify-between mb-10">
+      <aside className={`fixed ${isPosMode ? '' : 'lg:static'} inset-y-0 left-0 z-30 w-80 bg-black border-r border-gray-800 flex flex-col transform transition-transform duration-300 ease-in-out h-screen ${isSidebarOpen ? 'translate-x-0' : (isPosMode ? '-translate-x-full' : '-translate-x-full lg:translate-x-0')}`}>
+        <div className="p-6 shrink-0">
+          <div className="flex items-center justify-between mb-8">
             <div onClick={() => navigate('/dashboard')} className="cursor-pointer flex items-center gap-3">
-              <img src="/logo.jpeg" alt="Logo" className="w-12 h-12 rounded-xl object-cover shadow-lg shadow-red-900/20" />
-              <h1 className="text-3xl font-bold text-white tracking-tight">Extrême<span className="text-red-600">Buritos</span></h1>
+              <img src="/logo.jpeg" alt="Logo" className="w-10 h-10 rounded-xl object-cover shadow-lg shadow-red-900/20" />
+              <h1 className="text-2xl font-bold text-white tracking-tight">Extrême<span className="text-red-600">Buritos</span></h1>
             </div>
             <button className="lg:hidden text-gray-400 hover:text-red-600" onClick={closeSidebar}>
-              <X size={24} />
+              <X size={20} />
             </button>
           </div>
         </div>
 
-        <nav className="flex-1 space-y-8 overflow-y-auto px-4 no-scrollbar pb-10">
+        <nav className="flex-1 space-y-6 overflow-y-auto px-4 no-scrollbar pb-10">
           {/* GROUPE 1: Caisse & Ventes (superAdmin or Caissier) */}
           {(userRole === 'superAdmin' || userRole?.toLowerCase().startsWith('caissier')) && (
-            <div>
-              <p className="text-[14px] font-black text-gray-500 uppercase tracking-widest mb-3 px-4">Caisse & Ventes</p>
+            <div className="space-y-3">
+              <p className="text-[12px] font-black text-gray-500 uppercase tracking-widest px-4 opacity-50">Caisse & Ventes</p>
               <div className="space-y-1">
-                <NavItem icon={<ShoppingCart size={20} />} label="Caisse Resto" active={activeTab === 'restaurant-pos'} onClick={() => { navigate('/dashboard/restaurant-pos'); closeSidebar(); }} />
-                <NavItem icon={<TrendingUp size={20} />} label="Résultat Journalière" active={activeTab === 'sales-analytics'} onClick={() => { navigate('/dashboard/sales-analytics'); closeSidebar(); }} />
+                <NavItem icon={<ShoppingCart size={18} />} label="Caisse Resto" active={activeTab === 'restaurant-pos'} onClick={() => { navigate('/dashboard/restaurant-pos'); closeSidebar(); }} />
+                <NavItem icon={<TrendingUp size={18} />} label="Résultat Journalière" active={activeTab === 'sales-analytics'} onClick={() => { navigate('/dashboard/sales-analytics'); closeSidebar(); }} />
               </div>
             </div>
           )}
 
           {/* RESTAURANT SECTION (superAdmin, serveur, cuisine, Caissier) */}
-          <div>
+          <div className="space-y-3">
             <div className="space-y-1">
               {(userRole === 'superAdmin') && (
-                <NavItem icon={<LayoutDashboard size={20} />} label="Gestion Menus" active={activeTab === 'menus'} onClick={() => { navigate('/dashboard/menus'); closeSidebar(); }} />
+                <NavItem icon={<LayoutDashboard size={18} />} label="Gestion Menus" active={activeTab === 'menus'} onClick={() => { navigate('/dashboard/menus'); closeSidebar(); }} />
               )}
               {(userRole === 'superAdmin' || userRole === 'serveur') && (
-                <NavItem icon={<Utensils size={20} />} label="Prise de Commande" active={activeTab === 'restaurant-order'} onClick={() => { navigate('/dashboard/restaurant-order'); closeSidebar(); }} />
+                <NavItem icon={<Utensils size={18} />} label="Prise de Commande" active={activeTab === 'restaurant-order'} onClick={() => { navigate('/dashboard/restaurant-order'); closeSidebar(); }} />
               )}
               {(userRole === 'superAdmin' || userRole === 'cuisine') && (
-                <NavItem icon={<Clock size={20} />} label="Cuisine" active={activeTab === 'restaurant-kitchen'} onClick={() => { navigate('/dashboard/restaurant-kitchen'); closeSidebar(); }} />
+                <NavItem icon={<Clock size={18} />} label="Cuisine" active={activeTab === 'restaurant-kitchen'} onClick={() => { navigate('/dashboard/restaurant-kitchen'); closeSidebar(); }} />
               )}
             </div>
           </div>
@@ -503,7 +503,7 @@ export default function Dashboard({ session }) {
       </aside>
 
       {/* Main Content Area */}
-      <main className="relative z-10 flex-1 flex flex-col min-h-screen bg-gray-50">
+      <main className="relative z-10 flex-1 flex flex-col h-screen bg-gray-50 overflow-hidden">
         {/* Header */}
         <header className="h-20 bg-white border-b border-gray-200 px-4 md:px-8 flex justify-between items-center shrink-0 z-50">
           <div className="flex items-center gap-4">

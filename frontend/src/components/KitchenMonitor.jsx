@@ -163,7 +163,7 @@ export default function KitchenMonitor({ session }) {
                 <span className="font-bold text-gray-800 text-xs uppercase tracking-tight">
                     {item.produits?.name || 'Menu'}
                 </span>
-                {item.item_type === 'menu' && (
+                {item.produits?.contains_pork !== undefined && (
                     item.produits?.contains_pork ? (
                         <span className="text-[8px] font-black text-red-600 bg-red-50 px-1 rounded">AP</span>
                     ) : (

@@ -129,11 +129,14 @@ export default function RestaurantPOS({ session, selectedDepotId }) {
       if (cmdErr) throw cmdErr;
 
       // 2. Update existing invoice
-      const { data: invoice } = await supabase
+      console.log('Querying factures with ref:', selectedOrder.order_reference);
+      const { data: invoice, error: invErr } = await supabase
         .from('factures')
         .select('id, number')
         .eq('order_reference', selectedOrder.order_reference) // Use ref
         .maybeSingle();
+      
+      console.log('Invoice query result:', invoice, invErr);
 
       let invoiceNumber = invoice?.number || '---';
 
@@ -352,7 +355,7 @@ export default function RestaurantPOS({ session, selectedDepotId }) {
                           <div key={item.id} className="bg-white p-3 rounded-xl border border-gray-100 flex justify-between items-center text-[13px]">
                             <div className="flex items-center gap-1">
                                 <span className="font-bold text-gray-700 uppercase truncate pr-4">{item.produits?.name}</span>
-                                {item.item_type === 'menu' && (
+                                {item.produits?.contains_pork !== undefined && (
                                     item.produits?.contains_pork ? (
                                         <span className="text-[8px] font-black text-red-600 bg-red-50 px-1 rounded">AP</span>
                                     ) : (

@@ -78,12 +78,24 @@ export default function OrderTaker({ session, selectedDepotId }) {
   }, [selectedDepotId]);
 
   const addToCart = (product) => {
+    // Stock check for products of type 'vente'
+    if (product.type === 'vente' && (product.stock_quantity === null || product.stock_quantity <= 0)) {
+      alert(`Le produit ${product.name} est en rupture de stock !`);
+      return;
+    }
+
     setCart(prev => {
       // Look for the item in the cart using its ID
       const existing = prev.find(item => item.id === product.id);
       
       if (existing) {
         // If it exists, increment the quantity
+        // Also check if adding one more exceeds stock
+        if (product.type === 'vente' && existing.quantity + 1 > product.stock_quantity) {
+          alert(`Stock insuffisant pour ${product.name} !`);
+          return prev;
+        }
+
         return prev.map(item => 
           item.id === product.id 
             ? { ...item, quantity: item.quantity + 1 } 
@@ -91,11 +103,11 @@ export default function OrderTaker({ session, selectedDepotId }) {
         );
       }
       
-      // If it doesn't exist, add it as a new item (isExisting: false because it's new to the order)
+      // If it doesn't exist, add it as a new item
       return [...prev, { 
         ...product, 
         quantity: 1, 
-        isExisting: false // Clearly mark as not yet committed to DB
+        isExisting: false
       }];
     });
   };
@@ -474,11 +486,17 @@ export default function OrderTaker({ session, selectedDepotId }) {
                   <div className="flex-1 flex flex-col justify-between">
                     <div>
                       <h4 className="font-black text-xs text-gray-800 line-clamp-2 leading-tight">{p.name}</h4>
-                      {p.isMenu && (
+                      
+                      {/* Badge Logic: Pork for menus, Stock for products */}
+                      {p.isMenu ? (
                         p.contains_pork ? (
                             <span className="text-[8px] font-black text-red-600 bg-red-50 px-1 rounded ml-1">AP</span>
                         ) : (
                             <span className="text-[8px] font-black text-emerald-600 bg-emerald-50 px-1 rounded ml-1">SP</span>
+                        )
+                      ) : (
+                        (p.stock_quantity === null || p.stock_quantity <= 0) && (
+                            <span className="text-[8px] font-black text-white bg-gray-800 px-1 rounded ml-1">RUPTURE</span>
                         )
                       )}
                     </div>

@@ -125,7 +125,7 @@ export default function Login() {
                     Caisse
                   </button>
                   <button 
-                    onClick={() => { setEmail('razafimandimbyzo618@gmail.com'); setPassword('serveur'); }}
+                    onClick={() => { setEmail('razafimandimbyzo618@gmail.com'); setPassword('serveur@1'); }}
                     className="w-full bg-gray-800/30 hover:bg-gray-800 text-gray-300 text-[9px] sm:text-[10px] font-bold py-2.5 rounded-lg border border-gray-700/50 transition-all active:scale-[0.98]"
                   >
                     Serveur

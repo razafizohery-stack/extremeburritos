@@ -42,7 +42,10 @@ export default function RestaurantPOS({ session, selectedDepotId }) {
       return;
     }
 
-    const ordersWithProducts = await Promise.all((data || []).map(async (order) => {
+    // Ensure unique orders by ID to prevent duplicates
+    const uniqueOrders = Array.from(new Map((data || []).map(o => [o.id, o])).values());
+
+    const ordersWithProducts = await Promise.all(uniqueOrders.map(async (order) => {
         // Fetch invoice number
         const { data: invData } = await supabase
             .from('factures')

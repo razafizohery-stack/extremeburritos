@@ -30,6 +30,7 @@ export default function OrderTaker({ session, selectedDepotId }) {
   const itemsPerPage = 8;
   const [cart, setCart] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [activeTables, setActiveTables] = useState([]);
   
   // Mobile UI State: 'tables', 'menu', 'cart'
   const [activeTab, setActiveTab] = useState('tables');
@@ -37,10 +38,13 @@ export default function OrderTaker({ session, selectedDepotId }) {
   useEffect(() => {
     const fetchData = async () => {
       setLoading(true);
-      const [prodRes, catRes] = await Promise.all([
+      const [prodRes, catRes, allOrdersRes] = await Promise.all([
         supabase.from('produits').select('*').order('name'),
-        supabase.from('categories').select('*').order('name')
+        supabase.from('categories').select('*').order('name'),
+        supabase.from('commandes').select('table_name, status') // Fetch all orders to debug
       ]);
+      
+      console.log('DEBUG: All orders in DB:', allOrdersRes.data);
       
       const filteredCats = (catRes.data || []).filter(c => 
         c.name.toLowerCase().includes('boisson')
@@ -48,6 +52,7 @@ export default function OrderTaker({ session, selectedDepotId }) {
       
       setProducts(prodRes.data || []);
       setCategories(filteredCats);
+      setActiveTables(allOrdersRes.data?.filter(o => o.status === 'pending').map(o => o.table_name) || []);
       setLoading(false);
     };
     fetchData();
@@ -55,11 +60,24 @@ export default function OrderTaker({ session, selectedDepotId }) {
 
   const addToCart = (product) => {
     setCart(prev => {
+      // Look for the item in the cart using its ID
       const existing = prev.find(item => item.id === product.id);
+      
       if (existing) {
-        return prev.map(item => item.id === product.id ? { ...item, quantity: item.quantity + 1 } : item);
+        // If it exists, increment the quantity
+        return prev.map(item => 
+          item.id === product.id 
+            ? { ...item, quantity: item.quantity + 1 } 
+            : item
+        );
       }
-      return [...prev, { ...product, quantity: 1 }];
+      
+      // If it doesn't exist, add it as a new item (isExisting: false because it's new to the order)
+      return [...prev, { 
+        ...product, 
+        quantity: 1, 
+        isExisting: false // Clearly mark as not yet committed to DB
+      }];
     });
   };
 
@@ -95,6 +113,51 @@ export default function OrderTaker({ session, selectedDepotId }) {
   const total = useMemo(() => cart.reduce((a, b) => a + (b.quantity * b.price), 0), [cart]);
   const cartCount = useMemo(() => cart.reduce((a, b) => a + b.quantity, 0), [cart]);
 
+  const [activeOrderId, setActiveOrderId] = useState(null);
+
+  const fetchActiveOrder = async (tableName) => {
+    console.log('Fetching active order for:', tableName);
+    const { data: order, error } = await supabase
+      .from('commandes')
+      .select('id, commande_items(id, item_id, item_type, quantity, unit_price)')
+      .eq('table_name', tableName)
+      .eq('status', 'pending')
+      .maybeSingle();
+
+    console.log('Fetched order:', order);
+    console.log('Fetch error:', error);
+
+    if (order) {
+      setActiveOrderId(order.id);
+      
+      // Fetch product names separately to avoid join issues
+      const itemIds = order.commande_items.filter(i => i.item_type === 'product').map(i => i.item_id);
+      const { data: produits } = await supabase.from('produits').select('id, name').in('id', itemIds);
+      const productMap = (produits || []).reduce((acc, p) => ({ ...acc, [p.id]: p.name }), {});
+
+      // Map items to cart structure
+      const cartItems = order.commande_items.map(item => ({
+        id: item.item_id,
+        name: productMap[item.item_id] || 'Produit inconnu', // Populate name
+        quantity: item.quantity,
+        price: item.unit_price,
+        isExisting: true
+      }));
+      console.log('Setting cart with:', cartItems);
+      setCart(cartItems);
+    } else {
+      console.log('No order found, clearing cart.');
+      setActiveOrderId(null);
+      setCart([]);
+    }
+  };
+
+  const handleTableSelect = (table) => {
+    setSelectedTable(table);
+    fetchActiveOrder(table);
+    if (window.innerWidth < 1280) setActiveTab('menu');
+  };
+
   const handleSendOrder = async () => {
     if (!selectedTable) {
       alert('Veuillez sélectionner une table');
@@ -106,49 +169,116 @@ export default function OrderTaker({ session, selectedDepotId }) {
       return;
     }
 
-    const orderReference = `CMD-${Date.now()}`;
-    
-    // 1. Insert Order
-    const { data: orderData, error: orderError } = await supabase
+    // 0. Robust verification: Check for an existing order one last time
+    let targetOrderId = activeOrderId;
+    const { data: existingOrder } = await supabase
       .from('commandes')
-      .insert({
-        table_name: selectedTable,
-        status: 'pending',
-        order_reference: orderReference,
-        total_amount: total
-      })
       .select('id')
-      .single();
+      .eq('table_name', selectedTable)
+      .eq('status', 'pending')
+      .maybeSingle();
 
-    if (orderError) {
-      alert('Erreur lors de la création de la commande : ' + orderError.message);
-      return;
+    if (existingOrder) {
+      targetOrderId = existingOrder.id;
+      setActiveOrderId(targetOrderId);
     }
 
-    // 2. Insert Order Items
-    const orderItems = cart.map(item => ({
-      commande_id: orderData.id,
-      item_id: item.id,
-      item_type: 'product', // assuming products for now
-      quantity: item.quantity,
-      unit_price: item.price
-    }));
+    if (targetOrderId) {
+      // 1. Fetch current items in the active order
+      const { data: existingItems } = await supabase
+        .from('commande_items')
+        .select('id, item_id, quantity, unit_price')
+        .eq('commande_id', targetOrderId);
 
-    const { error: itemsError } = await supabase
-      .from('commande_items')
-      .insert(orderItems);
+      // 2. Prepare items for update or insert
+      const itemsToUpdate = [];
+      const itemsToInsert = [];
 
-    if (itemsError) {
-      alert('Erreur lors de l\'ajout des articles : ' + itemsError.message);
-      return;
+      cart.forEach(item => {
+        // item.id here is the product ID (item_id in DB)
+        const existingItem = existingItems?.find(ei => ei.item_id === item.id);
+        if (existingItem) {
+          if (existingItem.quantity !== item.quantity || existingItem.unit_price !== item.price) {
+            itemsToUpdate.push({
+              id: existingItem.id, // The ID of the commande_item record
+              quantity: item.quantity,
+              unit_price: item.price
+            });
+          }
+        } else {
+          itemsToInsert.push({
+            commande_id: targetOrderId,
+            item_id: item.id, // item.id is product ID
+            item_type: 'product',
+            quantity: item.quantity,
+            unit_price: item.price
+          });
+        }
+      });
+
+      // 3. Perform operations
+      if (itemsToInsert.length > 0) {
+        await supabase.from('commande_items').insert(itemsToInsert);
+      }
+      
+      for (const item of itemsToUpdate) {
+        await supabase
+          .from('commande_items')
+          .update({ quantity: item.quantity, unit_price: item.unit_price })
+          .eq('id', item.id);
+      }
+
+      // 4. Update the total amount in the 'commandes' table
+      await supabase
+        .from('commandes')
+        .update({ total_amount: total })
+        .eq('id', targetOrderId);
+    } else {
+      // Create new order
+      const orderReference = `CMD-${Date.now()}`;
+      
+      const { data: orderData, error: orderError } = await supabase
+        .from('commandes')
+        .insert({
+          table_name: selectedTable,
+          status: 'pending',
+          order_reference: orderReference,
+          total_amount: total
+        })
+        .select('id')
+        .single();
+
+      if (orderError) {
+        alert('Erreur lors de la création de la commande : ' + orderError.message);
+        return;
+      }
+
+      const orderItems = cart.map(item => ({
+        commande_id: orderData.id,
+        item_id: item.id,
+        item_type: 'product',
+        quantity: item.quantity,
+        unit_price: item.price
+      }));
+
+      const { error: itemsError } = await supabase
+        .from('commande_items')
+        .insert(orderItems);
+
+      if (itemsError) {
+        alert('Erreur lors de l\'ajout des articles : ' + itemsError.message);
+        return;
+      }
     }
 
     alert('Commande envoyée en cuisine !');
     setCart([]);
     setSelectedTable(null);
+    setActiveOrderId(null);
     setActiveTab('tables');
     navigate('/dashboard/restaurant-kitchen');
   };
+
 
   if (loading) {
     return (
@@ -209,22 +339,23 @@ export default function OrderTaker({ session, selectedDepotId }) {
             </div>
 
             <div className="flex-1 overflow-y-auto">
+              {console.log('Active tables:', activeTables)}
               <div className="grid grid-cols-2 gap-2">
                 {paginatedTables.map(table => (
                   <button 
                     key={table} 
-                    onClick={() => {
-                      setSelectedTable(table);
-                      if (window.innerWidth < 1280) setActiveTab('menu');
-                    }} 
+                    onClick={() => handleTableSelect(table)} 
                     className={`
-                      aspect-[4/3] rounded-2xl flex flex-col items-center justify-center gap-1 transition-all duration-200 border-2
+                      aspect-[4/3] rounded-2xl flex flex-col items-center justify-center gap-1 transition-all duration-200 border-2 relative
                       ${selectedTable === table 
                         ? 'bg-red-600 border-red-600 text-white shadow-md' 
                         : 'bg-gray-50 border-transparent text-gray-600 hover:bg-gray-100'
                       }
                     `}
                   >
+                    {activeTables.includes(table) && (
+                      <span className="absolute top-2 right-2 w-2 h-2 bg-emerald-500 rounded-full animate-pulse" />
+                    )}
                     <span className="text-xl font-black">{table.replace('Table ', '')}</span>
                     <span className="text-[9px] font-bold uppercase opacity-60">Table</span>
                   </button>
@@ -362,29 +493,30 @@ export default function OrderTaker({ session, selectedDepotId }) {
               </div>
             ) : (
               cart.map(item => (
-                <div key={item.id} className="bg-white p-2 rounded-xl shadow-sm border border-gray-100 flex items-center gap-2">
+                <div key={item.id} className={`p-2 rounded-xl shadow-sm border border-gray-100 flex items-center gap-2 ${item.isExisting ? 'opacity-60 bg-gray-100' : 'bg-white'}`}>
                   <div className="flex-1 min-w-0">
-                    <h4 className="font-black text-[11px] text-gray-800 truncate leading-tight">{item.name}</h4>
-                    <p className="text-[10px] text-red-600 font-black">{item.price.toLocaleString()} Ar</p>
+                    <h4 className={`font-black text-[11px] truncate leading-tight ${item.isExisting ? 'text-gray-500' : 'text-gray-800'}`}>
+                      {item.name} {item.isExisting && <span className="text-[9px] uppercase italic">(En cuisine)</span>}
+                    </h4>
+                    <p className="text-[10px] text-gray-500 font-black">{item.price.toLocaleString()} Ar</p>
                   </div>
-                  <div className="flex items-center gap-1 bg-gray-100 p-0.5 rounded-lg">
+                  <div className={`flex items-center gap-1 p-0.5 rounded-lg bg-gray-100`}>
                     <button 
                       onClick={() => updateQuantity(item.id, -1)} 
-                      className="w-6 h-6 flex items-center justify-center text-gray-500 hover:bg-white rounded-md transition-colors"
+                      className="w-6 h-6 flex items-center justify-center text-gray-500 hover:bg-white rounded-md transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
                     >
                       <Minus size={12}/>
                     </button>
                     <span className="w-4 text-center font-black text-[11px] text-gray-800">{item.quantity}</span>
                     <button 
                       onClick={() => updateQuantity(item.id, 1)} 
-                      className="w-6 h-6 flex items-center justify-center text-gray-800 hover:bg-white rounded-md transition-colors"
+                      className="w-6 h-6 flex items-center justify-center text-gray-800 hover:bg-white rounded-md transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
                     >
                       <Plus size={12}/>
                     </button>
                   </div>
                 </div>
-              ))
-            )}
+              ))            )}
           </div>
 
           <div className="p-3 bg-white border-t border-gray-200 space-y-3">

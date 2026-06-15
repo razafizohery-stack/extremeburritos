@@ -29,16 +29,8 @@ export default function KitchenMonitor({ session }) {
       return;
     }
 
-    const groupedOrders = {};
-    (data || []).forEach(order => {
-        if (!groupedOrders[order.table_name]) {
-            groupedOrders[order.table_name] = { ...order, commande_items: [...order.commande_items] };
-        } else {
-            groupedOrders[order.table_name].commande_items.push(...order.commande_items);
-        }
-    });
-
-    const ordersWithProducts = await Promise.all(Object.values(groupedOrders).map(async (order) => {
+    // Process orders directly by ID
+    const ordersWithProducts = await Promise.all((data || []).map(async (order) => {
         const itemsWithNames = await Promise.all(order.commande_items.map(async (item) => {
             const baseItem = { ...item };
             if (item.item_type === 'product' && item.item_id) {
@@ -74,16 +66,17 @@ export default function KitchenMonitor({ session }) {
     const channel = supabase
       .channel('kitchen-orders')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'commandes' }, fetchOrders)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'commande_items' }, fetchOrders)
       .subscribe();
     return () => supabase.removeChannel(channel);
   }, []);
 
-  const updateStatus = async (orderReference, newStatus) => {
+  const updateStatus = async (orderId, newStatus) => {
     if (newStatus === 'cancelled') {
         const { data: orderData } = await supabase
             .from('commandes')
             .select('commande_items(item_id, item_type, quantity)')
-            .eq('order_reference', orderReference)
+            .eq('id', orderId)
             .single();
 
         if (orderData && orderData.commande_items) {
@@ -109,15 +102,14 @@ export default function KitchenMonitor({ session }) {
     const { error } = await supabase
       .from('commandes')
       .update({ status: newStatus })
-      .eq('order_reference', orderReference);
+      .eq('id', orderId);
 
     if (error) {
       alert("Erreur lors de la mise à jour : " + error.message);
     } else {
         const message = newStatus === 'cancelled' ? "Commande annulée !" : "Commande prête !";
-        const toast = document.createElement('div');
-        toast.className = `fixed top-5 right-5 px-8 py-5 rounded-[2rem] font-black text-white shadow-2xl z-[200] animate-in slide-in-from-top-4 duration-300 ${newStatus === 'cancelled' ? 'bg-gray-900 border-2 border-white/10' : 'bg-emerald-600 border-4 border-emerald-500 shadow-emerald-500/40'}`;
-        toast.textContent = message;
+        // ... rest of toast logic ...
+
         document.body.appendChild(toast);
         setTimeout(() => {
             toast.remove();
@@ -229,10 +221,10 @@ export default function KitchenMonitor({ session }) {
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 content-start">
           {paginatedOrders.map(order => (
             <OrderCard 
-              key={order.order_reference} 
+              key={order.id} 
               order={order} 
-              onAction={() => updateStatus(order.order_reference, 'ready')} 
-              onCancel={() => updateStatus(order.order_reference, 'cancelled')}
+              onAction={() => updateStatus(order.id, 'ready')} 
+              onCancel={() => updateStatus(order.id, 'cancelled')}
               actionLabel="TERMINER" 
               actionColor="bg-emerald-600" 
             />

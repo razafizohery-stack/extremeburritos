@@ -518,18 +518,20 @@ export default function Dashboard({ session }) {
           </div>
 
           <div className="flex items-center gap-3 md:gap-6">
-            <div className="hidden sm:flex items-center gap-2 bg-gray-100 border border-gray-200 rounded-xl px-3 py-1.5">
-              <Building2 size={16} className="text-red-600" />
-              <select 
-                className="bg-transparent border-none text-base font-black text-gray-800 focus:ring-0 outline-none cursor-pointer"
-                value={selectedDepotId}
-                onChange={handleDepotChange}
-              >
-                {depots.map(d => (
-                  <option key={d.id} value={d.id}>{d.name}</option>
-                ))}
-              </select>
-            </div>
+            {userRole === 'superAdmin' && (
+              <div className="hidden sm:flex items-center gap-2 bg-gray-100 border border-gray-200 rounded-xl px-3 py-1.5">
+                <Building2 size={16} className="text-red-600" />
+                <select 
+                  className="bg-transparent border-none text-base font-black text-gray-800 focus:ring-0 outline-none cursor-pointer"
+                  value={selectedDepotId}
+                  onChange={handleDepotChange}
+                >
+                  {depots.map(d => (
+                    <option key={d.id} value={d.id}>{d.name}</option>
+                  ))}
+                </select>
+              </div>
+            )}
             <div className="relative w-40 md:w-64 hidden sm:block">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
               <input 

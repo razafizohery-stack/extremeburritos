@@ -54,22 +54,25 @@ export default function RestaurantPOS({ session, selectedDepotId }) {
             .maybeSingle();
 
         const itemsWithNames = await Promise.all(order.commande_items.map(async (item) => {
-            if (item.item_type === 'product') {
-                const { data: prodData } = await supabase
-                    .from('produits')
-                    .select('name, type')
-                    .eq('id', item.item_id)
-                    .single();
-                return { ...item, produits: prodData };
-            } else if (item.item_type === 'menu') {
+            let name = 'Article Inconnu';
+
+            if (item.item_type === 'menu' && item.item_id) {
                 const { data: menuData } = await supabase
                     .from('menus')
                     .select('name')
                     .eq('id', item.item_id)
-                    .single();
-                return { ...item, produits: { ...menuData, type: 'cuisine' } };
+                    .maybeSingle();
+                name = menuData?.name || `Menu ${item.item_id.slice(0,4)}`;
+            } else if (item.item_id) { // Assume 'product' or default
+                const { data: prodData } = await supabase
+                    .from('produits')
+                    .select('name')
+                    .eq('id', item.item_id)
+                    .maybeSingle();
+                name = prodData?.name || `Produit ${item.item_id.slice(0,4)}`;
             }
-            return { ...item, produits: { name: 'Article' } };
+            
+            return { ...item, produits: { name } };
         }));
         return { ...order, commande_items: itemsWithNames, invoice_number: invData?.number || '---' };
     }));

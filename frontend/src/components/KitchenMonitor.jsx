@@ -33,22 +33,25 @@ export default function KitchenMonitor({ session }) {
     const ordersWithProducts = await Promise.all((data || []).map(async (order) => {
         const itemsWithNames = await Promise.all(order.commande_items.map(async (item) => {
             const baseItem = { ...item };
-            if (item.item_type === 'product' && item.item_id) {
-                const { data: prodData } = await supabase
-                    .from('produits')
-                    .select('name, type')
-                    .eq('id', item.item_id)
-                    .maybeSingle();
-                return { ...baseItem, produits: prodData || { name: 'Produit inconnu' } };
-            } else if (item.item_type === 'menu') {
+            let name = 'Article Inconnu';
+
+            if (item.item_type === 'menu' && item.item_id) {
                 const { data: menuData } = await supabase
                     .from('menus')
                     .select('name')
                     .eq('id', item.item_id)
                     .maybeSingle();
-                return { ...baseItem, produits: { ...menuData, type: 'cuisine' } };
+                name = menuData?.name || `Menu ${item.item_id.slice(0,4)}`;
+            } else if (item.item_id) { // Assume 'product' or default
+                const { data: prodData } = await supabase
+                    .from('produits')
+                    .select('name')
+                    .eq('id', item.item_id)
+                    .maybeSingle();
+                name = prodData?.name || `Produit ${item.item_id.slice(0,4)}`;
             }
-            return { ...baseItem, produits: { name: 'Article Inconnu' } };
+            
+            return { ...baseItem, produits: { name } };
         }));
         return { ...order, commande_items: itemsWithNames };
     }));
@@ -72,50 +75,53 @@ export default function KitchenMonitor({ session }) {
   }, []);
 
   const updateStatus = async (orderId, newStatus) => {
-    if (newStatus === 'cancelled') {
-        const { data: orderData } = await supabase
-            .from('commandes')
-            .select('commande_items(item_id, item_type, quantity)')
-            .eq('id', orderId)
-            .single();
+    let errorOccurred = false;
+    try {
+        if (newStatus === 'cancelled') {
+            const { data: orderData } = await supabase
+                .from('commandes')
+                .select('commande_items(item_id, item_type, quantity)')
+                .eq('id', orderId)
+                .single();
 
-        if (orderData && orderData.commande_items) {
-            for (const item of orderData.commande_items) {
-                if (item.item_type === 'product') {
-                    const { data: stockData } = await supabase
-                        .from('stocks')
-                        .select('id, quantity')
-                        .eq('product_id', item.item_id)
-                        .maybeSingle();
-
-                    if (stockData) {
-                        await supabase
+            if (orderData && orderData.commande_items) {
+                for (const item of orderData.commande_items) {
+                    if (item.item_type === 'product') {
+                        const { data: stockData } = await supabase
                             .from('stocks')
-                            .update({ quantity: Number(stockData.quantity) + Number(item.quantity) })
-                            .eq('id', stockData.id);
+                            .select('id, quantity')
+                            .eq('product_id', item.item_id)
+                            .maybeSingle();
+
+                        if (stockData) {
+                            await supabase
+                                .from('stocks')
+                                .update({ quantity: Number(stockData.quantity) + Number(item.quantity) })
+                                .eq('id', stockData.id);
+                        }
                     }
                 }
             }
         }
-    }
 
-    const { error } = await supabase
-      .from('commandes')
-      .update({ status: newStatus })
-      .eq('id', orderId);
+        const { error } = await supabase
+            .from('commandes')
+            .update({ status: newStatus })
+            .eq('id', orderId);
 
-    if (error) {
-      alert("Erreur lors de la mise à jour : " + error.message);
-    } else {
+        if (error) throw error;
+        
+        // Show success message
         const message = newStatus === 'cancelled' ? "Commande annulée !" : "Commande prête !";
-        // ... rest of toast logic ...
-
-        document.body.appendChild(toast);
-        setTimeout(() => {
-            toast.remove();
-            fetchOrders();
-        }, 2500);
+        console.log(message);
+        
+        await fetchOrders();
+    } catch (e) {
+        console.error("Erreur lors de la mise à jour :", e);
+        alert("Erreur lors de la mise à jour : " + e.message);
+        errorOccurred = true;
     }
+    return !errorOccurred;
   };
 
   function OrderCard({ order, onAction, actionLabel, actionColor, onCancel }) {

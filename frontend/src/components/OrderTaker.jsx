@@ -38,20 +38,39 @@ export default function OrderTaker({ session, selectedDepotId }) {
   useEffect(() => {
     const fetchData = async () => {
       setLoading(true);
-      const [prodRes, catRes, allOrdersRes] = await Promise.all([
-        supabase.from('produits').select('*').order('name'),
-        supabase.from('categories').select('*').order('name'),
-        supabase.from('commandes').select('table_name, status') // Fetch all orders to debug
+      
+      // 1. Fetch categories to find 'Boisson'
+      const { data: categories } = await supabase.from('categories').select('*');
+      const boissonCategory = categories?.find(c => c.name.toLowerCase().includes('boisson'));
+      const boissonId = boissonCategory?.id;
+
+      // 2. Fetch data based on filters
+      let productQuery = supabase.from('produits').select('*').eq('type', 'vente');
+      let menuQuery = supabase.from('menus').select('*, menu_items(produits(name))');
+      
+      if (boissonId) {
+        productQuery = productQuery.eq('category_id', boissonId);
+      }
+
+      const [prodRes, menuRes, allOrdersRes] = await Promise.all([
+        productQuery.order('name'),
+        menuQuery.order('name'),
+        supabase.from('commandes').select('table_name, status')
       ]);
       
-      console.log('DEBUG: All orders in DB:', allOrdersRes.data);
+      // Correctly set products and menus
+      const allItems = [
+        ...(prodRes.data || []),
+        ...(menuRes.data || []).map(m => ({ 
+          ...m, 
+          isMenu: true, 
+          type: 'menu',
+          description: m.menu_items?.map(i => i.produits?.name).join(', ') || m.description
+        }))
+      ];
+      setProducts(allItems);
+      setCategories(categories || []);
       
-      const filteredCats = (catRes.data || []).filter(c => 
-        c.name.toLowerCase().includes('boisson')
-      );
-      
-      setProducts(prodRes.data || []);
-      setCategories(filteredCats);
       setActiveTables(allOrdersRes.data?.filter(o => o.status === 'pending').map(o => o.table_name) || []);
       setLoading(false);
     };
@@ -105,7 +124,10 @@ export default function OrderTaker({ session, selectedDepotId }) {
   const filteredProducts = useMemo(() => {
     return products.filter(p => {
       const matchesSearch = p.name.toLowerCase().includes(searchTerm.toLowerCase());
-      const matchesCategory = selectedCategory === 'all' || p.category_id === selectedCategory;
+      // Handle 'all', 'menu' specific filter, and category ID filter
+      const matchesCategory = selectedCategory === 'all' || 
+                             (selectedCategory === 'menu' && p.isMenu) || 
+                             (p.category_id === selectedCategory);
       return matchesSearch && matchesCategory;
     });
   }, [products, searchTerm, selectedCategory]);
@@ -209,7 +231,7 @@ export default function OrderTaker({ session, selectedDepotId }) {
           itemsToInsert.push({
             commande_id: targetOrderId,
             item_id: item.id, // item.id is product ID
-            item_type: 'product',
+            item_type: item.isMenu ? 'menu' : 'product',
             quantity: item.quantity,
             unit_price: item.price
           });
@@ -256,7 +278,7 @@ export default function OrderTaker({ session, selectedDepotId }) {
       const orderItems = cart.map(item => ({
         commande_id: orderData.id,
         item_id: item.id,
-        item_type: 'product',
+        item_type: item.isMenu ? 'menu' : 'product',
         quantity: item.quantity,
         unit_price: item.price
       }));
@@ -417,6 +439,12 @@ export default function OrderTaker({ session, selectedDepotId }) {
                 className={`px-4 py-1.5 rounded-full whitespace-nowrap text-[10px] font-black uppercase tracking-tight transition-colors ${selectedCategory === 'all' ? 'bg-red-600 text-white' : 'bg-gray-100 text-gray-500'}`}
               >
                 Tout
+              </button>
+              <button 
+                onClick={() => setSelectedCategory('menu')}
+                className={`px-4 py-1.5 rounded-full whitespace-nowrap text-[10px] font-black uppercase tracking-tight transition-colors ${selectedCategory === 'menu' ? 'bg-red-600 text-white' : 'bg-gray-100 text-gray-500'}`}
+              >
+                Menus
               </button>
               {categories.map(cat => (
                 <button 

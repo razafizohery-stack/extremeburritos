@@ -124,11 +124,15 @@ export default function OrderTaker({ session, selectedDepotId }) {
   const filteredProducts = useMemo(() => {
     return products.filter(p => {
       const matchesSearch = p.name.toLowerCase().includes(searchTerm.toLowerCase());
-      // Handle 'all', 'menu' specific filter, and category ID filter
-      const matchesCategory = selectedCategory === 'all' || 
-                             (selectedCategory === 'menu' && p.isMenu) || 
-                             (p.category_id === selectedCategory);
-      return matchesSearch && matchesCategory;
+      
+      // If 'all', show everything.
+      if (selectedCategory === 'all') return matchesSearch;
+      
+      // If 'menu', show everything that is a menu.
+      if (selectedCategory === 'menu') return matchesSearch && p.isMenu;
+      
+      // Otherwise filter by category_id (including menus that might be in that category)
+      return matchesSearch && p.category_id === selectedCategory;
     });
   }, [products, searchTerm, selectedCategory]);
 
@@ -470,6 +474,13 @@ export default function OrderTaker({ session, selectedDepotId }) {
                   <div className="flex-1 flex flex-col justify-between">
                     <div>
                       <h4 className="font-black text-xs text-gray-800 line-clamp-2 leading-tight">{p.name}</h4>
+                      {p.isMenu && (
+                        p.contains_pork ? (
+                            <span className="text-[8px] font-black text-red-600 bg-red-50 px-1 rounded ml-1">AP</span>
+                        ) : (
+                            <span className="text-[8px] font-black text-emerald-600 bg-emerald-50 px-1 rounded ml-1">SP</span>
+                        )
+                      )}
                     </div>
                     <div className="flex items-center justify-between">
                       <span className="text-red-600 font-black text-xs">{p.price.toLocaleString()} Ar</span>

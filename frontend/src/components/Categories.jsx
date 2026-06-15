@@ -7,6 +7,7 @@ export default function Categories() {
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [newCatName, setNewCatName] = useState('');
+  const [newCatType, setNewCatType] = useState('product');
   const [editingCategory, setEditingCategory] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -29,22 +30,24 @@ export default function Categories() {
     if (editingCategory) {
       const { error } = await supabase
         .from('categories')
-        .update({ name: newCatName })
+        .update({ name: newCatName, type: newCatType })
         .eq('id', editingCategory.id);
       
       if (error) alert(error.message);
       else {
         setNewCatName('');
+        setNewCatType('product');
         setEditingCategory(null);
         setShowModal(false);
         fetchCategories();
       }
     } else {
       const { data: { user } } = await supabase.auth.getUser();
-      const { error } = await supabase.from('categories').insert([{ name: newCatName, user_id: user.id }]);
+      const { error } = await supabase.from('categories').insert([{ name: newCatName, type: newCatType, user_id: user.id }]);
       if (error) alert(error.message);
       else {
         setNewCatName('');
+        setNewCatType('product');
         setShowModal(false);
         fetchCategories();
       }
@@ -55,6 +58,7 @@ export default function Categories() {
   const handleEdit = (category) => {
     setEditingCategory(category);
     setNewCatName(category.name);
+    setNewCatType(category.type || 'product');
     setShowModal(true);
   };
 
@@ -62,6 +66,7 @@ export default function Categories() {
     setShowModal(false);
     setEditingCategory(null);
     setNewCatName('');
+    setNewCatType('product');
   };
 
   const deleteCategory = async (id) => {
@@ -166,6 +171,17 @@ export default function Categories() {
                   value={newCatName} 
                   onChange={e => setNewCatName(e.target.value)} 
                 />
+              </div>
+              <div className="space-y-2">
+                <label className="text-base font-bold text-red-600 uppercase ml-1">Type</label>
+                <select 
+                  className="w-full bg-gray-50/50 border border-gray-100 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-red-500/20 transition-all"
+                  value={newCatType}
+                  onChange={e => setNewCatType(e.target.value)}
+                >
+                  <option value="product">Produit</option>
+                  <option value="menu">Menu</option>
+                </select>
               </div>
               <button 
                 type="submit" 

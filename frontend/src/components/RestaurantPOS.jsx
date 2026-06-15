@@ -55,24 +55,27 @@ export default function RestaurantPOS({ session, selectedDepotId }) {
 
         const itemsWithNames = await Promise.all(order.commande_items.map(async (item) => {
             let name = 'Article Inconnu';
+            let contains_pork = false;
 
             if (item.item_type === 'menu' && item.item_id) {
                 const { data: menuData } = await supabase
                     .from('menus')
-                    .select('name')
+                    .select('name, contains_pork')
                     .eq('id', item.item_id)
                     .maybeSingle();
                 name = menuData?.name || `Menu ${item.item_id.slice(0,4)}`;
+                contains_pork = menuData?.contains_pork || false;
             } else if (item.item_id) { // Assume 'product' or default
                 const { data: prodData } = await supabase
                     .from('produits')
-                    .select('name')
+                    .select('name, contains_pork')
                     .eq('id', item.item_id)
                     .maybeSingle();
                 name = prodData?.name || `Produit ${item.item_id.slice(0,4)}`;
+                contains_pork = prodData?.contains_pork || false;
             }
             
-            return { ...item, produits: { name } };
+            return { ...item, produits: { name, contains_pork } };
         }));
         return { ...order, commande_items: itemsWithNames, invoice_number: invData?.number || '---' };
     }));
@@ -346,7 +349,14 @@ export default function RestaurantPOS({ session, selectedDepotId }) {
                       <div className="grid gap-1.5 max-h-32 md:max-h-48 overflow-y-auto pr-1 no-scrollbar">
                         {selectedOrder.commande_items.map(item => (
                           <div key={item.id} className="bg-white p-3 rounded-xl border border-gray-100 flex justify-between items-center text-[13px]">
-                            <span className="font-bold text-gray-700 uppercase truncate pr-4">{item.produits?.name}</span>
+                            <div className="flex items-center gap-1">
+                                <span className="font-bold text-gray-700 uppercase truncate pr-4">{item.produits?.name}</span>
+                                {item.produits?.contains_pork ? (
+                                    <span className="text-[8px] font-black text-red-600 bg-red-50 px-1 rounded">AP</span>
+                                ) : (
+                                    <span className="text-[8px] font-black text-emerald-600 bg-emerald-50 px-1 rounded">SP</span>
+                                )}
+                            </div>
                             <span className="text-gray-400 whitespace-nowrap">x{item.quantity} • {Number(item.quantity * item.unit_price).toLocaleString()} Ar</span>
                           </div>
                         ))}

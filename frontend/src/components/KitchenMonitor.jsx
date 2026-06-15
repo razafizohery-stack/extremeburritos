@@ -33,25 +33,29 @@ export default function KitchenMonitor({ session }) {
     const ordersWithProducts = await Promise.all((data || []).map(async (order) => {
         const itemsWithNames = await Promise.all(order.commande_items.map(async (item) => {
             const baseItem = { ...item };
+
             let name = 'Article Inconnu';
+            let contains_pork = false;
 
             if (item.item_type === 'menu' && item.item_id) {
                 const { data: menuData } = await supabase
                     .from('menus')
-                    .select('name')
+                    .select('name, contains_pork')
                     .eq('id', item.item_id)
                     .maybeSingle();
                 name = menuData?.name || `Menu ${item.item_id.slice(0,4)}`;
+                contains_pork = menuData?.contains_pork || false;
             } else if (item.item_id) { // Assume 'product' or default
                 const { data: prodData } = await supabase
                     .from('produits')
-                    .select('name')
+                    .select('name, contains_pork')
                     .eq('id', item.item_id)
                     .maybeSingle();
                 name = prodData?.name || `Produit ${item.item_id.slice(0,4)}`;
+                contains_pork = prodData?.contains_pork || false;
             }
-            
-            return { ...baseItem, produits: { name } };
+
+            return { ...baseItem, produits: { name, contains_pork } };
         }));
         return { ...order, commande_items: itemsWithNames };
     }));
@@ -155,9 +159,16 @@ export default function KitchenMonitor({ session }) {
             {order.commande_items?.map(item => (
             <div key={item.id} className={`flex justify-between items-center gap-3 p-3 rounded-xl border ${item.is_additional ? 'bg-orange-50 border-orange-100' : 'bg-white border-gray-50'}`}>
                 <div className="flex flex-col">
+                <div className="flex items-center gap-1">
                 <span className="font-bold text-gray-800 text-xs uppercase tracking-tight">
                     {item.produits?.name || 'Menu'}
                 </span>
+                {item.produits?.contains_pork ? (
+                    <span className="text-[8px] font-black text-red-600 bg-red-50 px-1 rounded">AP</span>
+                ) : (
+                    <span className="text-[8px] font-black text-emerald-600 bg-emerald-50 px-1 rounded">SP</span>
+                )}
+                </div>
                 {item.is_additional && (
                     <span className="text-[8px] font-black text-orange-600 uppercase mt-0.5">Ajout</span>
                 )}

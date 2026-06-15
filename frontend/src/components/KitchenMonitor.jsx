@@ -216,7 +216,7 @@ export default function KitchenMonitor({ session }) {
             <Utensils size={24} className="text-white" />
           </div>
           <div>
-            <h1 className="text-xl font-black text-gray-900 tracking-tight uppercase">Moniteur</h1>
+            <h1 className="text-xl font-black text-gray-900 tracking-tight uppercase">Moniteur Station</h1>
             <p className="text-[10px] font-bold text-gray-400 uppercase tracking-[0.2em]">Flux de préparation en temps réel</p>
           </div>
         </div>

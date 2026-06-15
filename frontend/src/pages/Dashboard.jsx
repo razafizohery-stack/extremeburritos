@@ -306,7 +306,7 @@ export default function Dashboard({ session }) {
               {(userRole === 'superAdmin' || userRole === 'serveur') && (
                 <NavItem icon={<Utensils size={18} />} label="Prise de Commande" active={activeTab === 'restaurant-order'} onClick={() => { navigate('/dashboard/restaurant-order'); closeSidebar(); }} />
               )}
-              {(userRole === 'superAdmin' || userRole === 'moniteur') && (
+              {(userRole === 'superAdmin' || userRole === 'cuisine') && (
                 <NavItem icon={<Clock size={18} />} label="Moniteur" active={activeTab === 'restaurant-kitchen'} onClick={() => { navigate('/dashboard/restaurant-kitchen'); closeSidebar(); }} />
               )}
             </div>
@@ -699,7 +699,7 @@ export default function Dashboard({ session }) {
                 </div>
               ) : userRole === 'serveur' ? (
                 <Navigate to="/dashboard/restaurant-order" replace />
-              ) : userRole === 'moniteur' ? (
+              ) : userRole === 'cuisine' ? (
                 <Navigate to="/dashboard/restaurant-kitchen" replace />
               ) : userRole?.toLowerCase().startsWith('caissier') ? (
                 <Navigate to="/dashboard/restaurant-pos" replace />

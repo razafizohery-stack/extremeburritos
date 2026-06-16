@@ -30,10 +30,17 @@ export default function Billing({ initialSearchTerm, onSearchReset }) {
 
   const openViewModal = async (inv) => {
     setViewingInvoice(inv);
-    const { data: items } = await supabase
+    console.log("Fetching items for invoice:", inv.id);
+    const { data: items, error } = await supabase
         .from('facture_items')
         .select('*, produits(name, price, price_superior, unite_base, unite_superieure, quantite_par_unite)')
         .eq('facture_id', inv.id);
+    
+    if (error) {
+        console.error("Error fetching items:", error);
+    } else {
+        console.log("Fetched items:", items);
+    }
     setViewingItems(items || []);
   };
 

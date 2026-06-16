@@ -22,11 +22,13 @@ export default function RestaurantPOS({ session, selectedDepotId }) {
     fetchDepot();
   }, [selectedDepotId]);
 
-  const filteredOrders = readyOrders.filter(order => 
-    order.table_name.toLowerCase().includes(searchTerm.toLowerCase())
+  const filteredOrders = readyOrders.filter(order =>
+    order.table_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    (order.order_reference || '').toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   const fetchOrders = async () => {
+    console.log("fetchOrders started");
     const { data, error } = await supabase
       .from('commandes')
       .select(`
@@ -41,11 +43,13 @@ export default function RestaurantPOS({ session, selectedDepotId }) {
       setLoading(false);
       return;
     }
+    console.log("Raw orders data:", data);
 
     // Ensure unique orders by ID to prevent duplicates
     const uniqueOrders = Array.from(new Map((data || []).map(o => [o.id, o])).values());
 
     const ordersWithProducts = await Promise.all(uniqueOrders.map(async (order) => {
+        console.log("Processing order:", order.id, "Items:", order.commande_items);
         // Fetch invoice number
         const { data: invData } = await supabase
             .from('factures')
@@ -53,9 +57,10 @@ export default function RestaurantPOS({ session, selectedDepotId }) {
             .eq('order_reference', order.order_reference)
             .maybeSingle();
 
-        const itemsWithNames = await Promise.all(order.commande_items.map(async (item) => {
+        const itemsWithNames = await Promise.all((order.commande_items || []).map(async (item) => {
             let name = 'Article Inconnu';
             let contains_pork = false;
+            console.log("Processing item:", item);
 
             if (item.item_type === 'menu' && item.item_id) {
                 const { data: menuData } = await supabase
@@ -75,6 +80,7 @@ export default function RestaurantPOS({ session, selectedDepotId }) {
                 contains_pork = prodData?.contains_pork || false;
             }
             
+            console.log("Item name resolved to:", name);
             return { ...item, produits: { name, contains_pork } };
         }));
         return { ...order, commande_items: itemsWithNames, invoice_number: invData?.number || '---' };
@@ -114,6 +120,7 @@ export default function RestaurantPOS({ session, selectedDepotId }) {
     }
 
     setIsProcessing(true);
+    let invoiceNumber = '---';
     try {
       // 1. Update commande status to paid
       const { error: cmdErr } = await supabase
@@ -128,36 +135,67 @@ export default function RestaurantPOS({ session, selectedDepotId }) {
       
       if (cmdErr) throw cmdErr;
 
-      // 2. Update existing invoice
+      // 2. Query or Create invoice
       console.log('Querying factures with ref:', selectedOrder.order_reference);
-      const { data: invoice, error: invErr } = await supabase
+      let { data: invoice, error: invErr } = await supabase
         .from('factures')
         .select('id, number')
-        .eq('order_reference', selectedOrder.order_reference) // Use ref
+        .eq('order_reference', selectedOrder.order_reference)
         .maybeSingle();
-      
-      console.log('Invoice query result:', invoice, invErr);
 
-      let invoiceNumber = invoice?.number || '---';
-
-      if (invoice) {
-        await supabase
-          .from('factures')
-          .update({ 
-            status: 'COMPTANT',
-            paid_amount: selectedOrder.total_amount,
-            payment_mode: paymentMethod === 'cash' ? 'ESPECE' : 'MOBILE_MONEY'
-          })
-          .eq('id', invoice.id);
+      // Fallback: Create invoice if not found
+      if (!invoice) {
+        console.log('Invoice not found, creating new one...');
+        const { data: newInvoice, error: newInvErr } = await supabase
+            .from('factures')
+            .insert([{
+                order_reference: selectedOrder.order_reference,
+                total_amount: selectedOrder.total_amount,
+                status: 'COMPTANT',
+                paid_amount: selectedOrder.total_amount,
+                payment_mode: paymentMethod === 'cash' ? 'ESPECE' : 'MOBILE_MONEY',
+                number: `FAC-${Date.now().toString().slice(-6)}`,
+                guest_name: selectedOrder.table_name || 'Client Restaurant',
+                user_id: session?.user?.id
+            }])
+            .select('id, number')
+            .single();
         
-        // Add payment record
-        await supabase.from('paiements').insert([{
-          facture_id: invoice.id,
-          montant: selectedOrder.total_amount,
-          method: paymentMethod === 'cash' ? 'ESPECE' : 'MOBILE_MONEY',
-          reference: paymentRef || null
-        }]);
+        if (newInvErr) throw newInvErr;
+        invoice = newInvoice;
+
+        // Insert items into facture_items
+        const factureItems = selectedOrder.commande_items.map(item => ({
+            facture_id: invoice.id,
+            produit_id: item.item_id,
+            quantity: item.quantity,
+            unit_price: item.unit_price,
+            total: item.quantity * item.unit_price
+        }));
+        const { error: itemsErr } = await supabase.from('facture_items').insert(factureItems);
+        if (itemsErr) throw itemsErr;
       }
+      
+      console.log('Invoice ready:', invoice);
+      invoiceNumber = invoice.number;
+
+      // 3. Update invoice and add payment
+      await supabase
+        .from('factures')
+        .update({ 
+          status: 'COMPTANT',
+          paid_amount: selectedOrder.total_amount,
+          payment_mode: paymentMethod === 'cash' ? 'ESPECE' : 'MOBILE_MONEY'
+        })
+        .eq('id', invoice.id);
+      
+      // Add payment record
+      await supabase.from('paiements').insert([{
+        facture_id: invoice.id,
+        montant: selectedOrder.total_amount,
+        method: paymentMethod === 'cash' ? 'ESPECE' : 'MOBILE_MONEY',
+        reference: paymentRef || null
+      }]);
 
 /*
       if (selectedOrder.commande_items) {
@@ -278,15 +316,15 @@ export default function RestaurantPOS({ session, selectedDepotId }) {
                   setPaymentMethod('cash');
                 }}
                 className={`w-full p-4 rounded-xl text-left transition-all border-2 flex justify-between items-center group active:scale-[0.98] ${
-                  selectedOrder?.id === order.id 
-                  ? 'bg-red-600 text-white border-red-600 shadow-lg shadow-red-200/50' 
+                  selectedOrder?.id === order.id
+                  ? 'bg-gray-200 text-gray-900 border-gray-300 shadow-lg'
                   : 'bg-white text-gray-800 border-gray-100 hover:border-red-100 hover:bg-red-50/30'
                 }`}
               >
                 <div className="flex flex-col gap-0.5">
                   <div className="text-base font-bold tracking-tight uppercase">{order.table_name}</div>
-                  <div className="text-[9px] font-black text-red-600 mb-0.5">{order.invoice_number}</div>
-                  <div className={`flex items-center gap-2 text-[8px] font-bold uppercase tracking-widest ${selectedOrder?.id === order.id ? 'text-white/60' : 'text-gray-400'}`}>
+                  <div className="text-[9px] font-black text-red-600 mb-0.5">{order.order_reference}</div>
+                  <div className={`flex items-center gap-2 text-[8px] font-bold uppercase tracking-widest ${order.status === 'ready' ? 'text-emerald-500' : (selectedOrder?.id === order.id ? 'text-white/60' : 'text-gray-400')}`}>
                     {order.status === 'ready' ? <CheckCircle size={8} /> : <Clock size={8} />}
                     {order.status === 'ready' ? 'Prête' : 'En Cuisine'}
                   </div>
@@ -295,7 +333,7 @@ export default function RestaurantPOS({ session, selectedDepotId }) {
                   <div className="text-sm font-bold tracking-tight">{Number(order.total_amount || 0).toLocaleString()} Ar</div>
                   <span className={`text-[7px] font-bold uppercase px-1.5 py-0.5 rounded-md ${
                     order.status === 'ready' 
-                    ? (selectedOrder?.id === order.id ? 'bg-white/20 text-white' : 'bg-emerald-100 text-emerald-700')
+                    ? 'bg-emerald-100 text-emerald-700'
                     : (selectedOrder?.id === order.id ? 'bg-white/20 text-white' : 'bg-orange-100 text-orange-700')
                   }`}>
                     {order.status === 'ready' ? 'PRÊT' : 'EN COURS'}
@@ -370,7 +408,7 @@ export default function RestaurantPOS({ session, selectedDepotId }) {
                           <div key={item.id} className="bg-white p-3 rounded-xl border border-gray-100 flex justify-between items-center text-[13px]">
                             <div className="flex items-center gap-1">
                                 <span className="font-bold text-gray-700 uppercase truncate pr-4">{item.produits?.name}</span>
-                                {item.produits?.contains_pork !== undefined && (
+                                {item.item_type === 'menu' && item.produits?.contains_pork !== undefined && (
                                     item.produits?.contains_pork ? (
                                         <span className="text-[8px] font-black text-red-600 bg-red-50 px-1 rounded">AP</span>
                                     ) : (

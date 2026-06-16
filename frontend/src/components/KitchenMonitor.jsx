@@ -204,15 +204,8 @@ export default function KitchenMonitor({ session }) {
                 <div className="flex flex-col">
                 <div className="flex items-center gap-1">
                 <span className="font-bold text-gray-800 text-xs uppercase tracking-tight">
-                    {item.produits?.name || 'Menu'}
+                    {item.produits?.name}
                 </span>
-                {item.produits?.contains_pork !== undefined && (
-                    item.produits?.contains_pork ? (
-                        <span className="text-[8px] font-black text-red-600 bg-red-50 px-1 rounded">AP</span>
-                    ) : (
-                        <span className="text-[8px] font-black text-emerald-600 bg-emerald-50 px-1 rounded">SP</span>
-                    )
-                )}
                 </div>
                 {item.is_additional && (
                     <span className="text-[8px] font-black text-orange-600 uppercase mt-0.5">Ajout</span>

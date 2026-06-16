@@ -118,30 +118,34 @@ export default function KitchenMonitor({ session }) {
                         if (updateError) throw updateError;
                     }
                 } else if (item.item_type === 'menu' && adjustment !== 0) {
-                     const { data: menuItems } = await supabase
-                        .from('menu_items')
-                        .select('produit_id')
-                        .eq('menu_id', item.item_id);
+                     // Get ingredients for this menu
+                     const { data: recetteItems } = await supabase
+                        .from('recettes')
+                        .select('ingredient_id, quantite_requise')
+                        .eq('produit_fini_id', item.item_id);
 
-                     console.log("Menu items found:", menuItems);
+                     console.log("Recipe ingredients found:", recetteItems);
 
-                     if (menuItems) {
-                         for (const mi of menuItems) {
+                     if (recetteItems && recetteItems.length > 0) {
+                         for (const ing of recetteItems) {
+                             // Calculate adjustment based on recipe quantity * menu quantity
+                             const ingAdjustment = adjustment * ing.quantite_requise;
+                             
                              const { data: stockData } = await supabase
                                 .from('stocks')
                                 .select('id, quantity')
-                                .eq('product_id', mi.produit_id)
+                                .eq('product_id', ing.ingredient_id)
                                 .maybeSingle();
 
-                             console.log("Stock data for menu product:", stockData);
+                             console.log("Stock data for ingredient:", stockData);
 
                              if (stockData) {
                                 const { error: updateError } = await supabase
                                     .from('stocks')
-                                    .update({ quantity: Number(stockData.quantity) + adjustment })
+                                    .update({ quantity: Number(stockData.quantity) + ingAdjustment })
                                     .eq('id', stockData.id);
                                 
-                                console.log("Menu product stock update result:", updateError || "Success");
+                                console.log("Ingredient stock update result:", updateError || "Success");
                                 if (updateError) throw updateError;
                              }
                          }
@@ -199,21 +203,30 @@ export default function KitchenMonitor({ session }) {
 
         {/* Card Items */}
         <div className="flex-1 p-5 space-y-3 overflow-y-auto no-scrollbar">
-            {order.commande_items?.map(item => (
-            <div key={item.id} className={`flex justify-between items-center gap-3 p-3 rounded-xl border ${item.is_additional ? 'bg-orange-50 border-orange-100' : 'bg-white border-gray-50'}`}>
-                <div className="flex flex-col">
-                <div className="flex items-center gap-1">
-                <span className="font-bold text-gray-800 text-xs uppercase tracking-tight">
-                    {item.produits?.name}
-                </span>
-                </div>
-                {item.is_additional && (
-                    <span className="text-[8px] font-black text-orange-600 uppercase mt-0.5">Ajout</span>
-                )}
-                </div>
-                <span className="bg-gray-900 text-white px-2 py-1 rounded-lg font-black text-[10px]">x{item.quantity}</span>
-            </div>
-            ))}
+            {order.commande_items?.map(item => {
+                console.log("Rendering item:", item);
+                return (
+                    <div key={item.id} className={`flex flex-col gap-1 p-3 rounded-xl border ${item.is_additional ? 'bg-orange-50 border-orange-100' : 'bg-white border-gray-50'}`}>
+                        <div className="flex justify-between items-center gap-3">
+                            <span className="font-bold text-gray-800 text-xs uppercase tracking-tight">
+                                {item.produits?.name}
+                            </span>
+                            <span className="bg-gray-900 text-white px-2 py-1 rounded-lg font-black text-[10px]">x{item.quantity}</span>
+                        </div>
+                        {/* Affichage des composants/recettes */}
+                        {item.ingredients && item.ingredients.length > 0 && (
+                            <ul className="text-[9px] text-gray-500 italic ml-2 border-l border-gray-200 pl-2">
+                                {item.ingredients.map((ing, i) => (
+                                    <li key={i}>{ing.ingredient?.name} ({ing.quantite_requise * item.quantity} {ing.unite_deduction})</li>
+                                ))}
+                            </ul>
+                        )}
+                        {item.is_additional && (
+                            <span className="text-[8px] font-black text-orange-600 uppercase mt-0.5">Ajout</span>
+                        )}
+                    </div>
+                );
+            })}
         </div>
 
         {/* Card Footer */}

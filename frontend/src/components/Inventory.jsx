@@ -34,6 +34,7 @@ export default function Inventory({ selectedDepotId }) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [viewMode, setViewMode] = useState('products'); 
   const [productViewMode, setProductViewMode] = useState('grid');
+  const [activeType, setActiveType] = useState('all'); 
   const [credits, setCredits] = useState([]);
   const [showCreditModal, setShowCreditModal] = useState(false);
   const [previewInvoice, setPreviewInvoice] = useState(null);
@@ -234,9 +235,13 @@ export default function Inventory({ selectedDepotId }) {
     if (selectedCategory) {
       currentProducts = currentProducts.filter(p => p.category_id === selectedCategory);
     }
+    
+    if (activeType !== 'all') {
+      currentProducts = currentProducts.filter(p => p.type === activeType);
+    }
 
     setFilteredProducts(currentProducts);
-  }, [products, searchTerm, selectedCategory]);
+  }, [products, searchTerm, selectedCategory, activeType]);
 
   const handleSave = async (e) => {
     e.preventDefault();
@@ -728,7 +733,7 @@ export default function Inventory({ selectedDepotId }) {
     .reduce((acc, m) => acc + (parseFloat(m.price_at_movement) || 0), 0);
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 overflow-y-auto h-screen pb-20">
       {/* Metrics Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <div className="bg-gradient-to-br from-red-600 to-red-600 p-6 rounded-[2rem] shadow-xl shadow-red-200/50 text-white relative overflow-hidden group">
@@ -799,6 +804,33 @@ export default function Inventory({ selectedDepotId }) {
         </div>
 
         <div className="flex bg-gray-50/50 p-1 rounded-2xl border border-gray-50/50 w-full sm:w-auto items-center gap-1">
+          <button 
+            onClick={() => {setActiveType('all'); setViewMode('products');}}
+            className={`px-4 py-2 rounded-xl text-[14px] font-black tracking-widest uppercase transition-all ${activeType === 'all' ? 'bg-red-600 text-white shadow-lg' : 'text-gray-600 hover:bg-gray-100'}`}
+          >
+            Tous
+          </button>
+          <button 
+            onClick={() => {setActiveType('vente'); setViewMode('products');}}
+            className={`px-4 py-2 rounded-xl text-[14px] font-black tracking-widest uppercase transition-all ${activeType === 'vente' ? 'bg-red-600 text-white shadow-lg' : 'text-gray-600 hover:bg-gray-100'}`}
+          >
+            Vente
+          </button>
+          <button 
+            onClick={() => {setActiveType('cuisine'); setViewMode('products');}}
+            className={`px-4 py-2 rounded-xl text-[14px] font-black tracking-widest uppercase transition-all ${activeType === 'cuisine' ? 'bg-red-600 text-white shadow-lg' : 'text-gray-600 hover:bg-gray-100'}`}
+          >
+            Cuisine
+          </button>
+          <button 
+            onClick={() => {setActiveType('autres'); setViewMode('products');}}
+            className={`px-4 py-2 rounded-xl text-[14px] font-black tracking-widest uppercase transition-all ${activeType === 'autres' ? 'bg-red-600 text-white shadow-lg' : 'text-gray-600 hover:bg-gray-100'}`}
+          >
+            Autres
+          </button>
+        </div>
+
+        <div className="flex bg-gray-50/50 p-1 rounded-2xl border border-gray-50/50 w-full sm:w-auto items-center gap-1 ml-auto">
           <button 
             onClick={() => setViewMode('products')}
             className={`flex-1 py-2 px-4 rounded-xl text-[16px] font-black tracking-widest uppercase transition-all ${viewMode === 'products' ? 'bg-red-600 text-white shadow-lg' : 'text-red-600 hover:bg-gray-50'}`}

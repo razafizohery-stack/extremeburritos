@@ -28,7 +28,8 @@ import {
   Building2,
   ArrowRightLeft,
   Utensils,
-  CreditCard
+  CreditCard,
+  Layers
 } from 'lucide-react';
 import Inventory from '../components/Inventory';
 import ProductList from '../components/ProductList';
@@ -55,6 +56,7 @@ import OrderTaker from '../components/OrderTaker';
 import KitchenMonitor from '../components/KitchenMonitor';
 import RestaurantPOS from '../components/RestaurantPOS';
 import MenuManager from '../components/MenuManager';
+import RecipeManager from '../components/RecipeManager';
 import UserManagement from '../components/UserManagement';
 
 export default function Dashboard({ session }) {
@@ -468,6 +470,7 @@ export default function Dashboard({ session }) {
                     )}
                   </div>
                   <NavItem icon={<Box size={20} />} label="Conversions" active={activeTab === 'conversions'} onClick={() => { navigate('/dashboard/conversions'); closeSidebar(); }} />
+                  <NavItem icon={<Layers size={20} />} label="Gestion Recettes" active={activeTab === 'recettes'} onClick={() => { navigate('/dashboard/recettes'); closeSidebar(); }} />
                   <NavItem icon={<Tag size={20} />} label="Catégories" active={activeTab === 'categories'} onClick={() => { navigate('/dashboard/categories'); closeSidebar(); }} />
                   <NavItem icon={<Building2 size={20} />} label="Dépôts" active={activeTab === 'depots'} onClick={() => { navigate('/dashboard/depots'); closeSidebar(); }} />
                 </div>
@@ -761,6 +764,7 @@ export default function Dashboard({ session }) {
                 <Route path="decaissement" element={<Decaissement session={session} />} />
                 <Route path="historique-transparence" element={<StockMovementsHistory />} />
                 <Route path="historique" element={<StockHistory />} />
+                <Route path="recettes" element={<RecipeManager />} />
                 <Route path="conversions" element={<Conversions session={session} />} />
                 <Route path="depots" element={<Depots />} />
                 <Route path="stock-transfer" element={<StockTransfer />} />

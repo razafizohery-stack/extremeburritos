@@ -45,7 +45,17 @@ export default function OrderTaker({ session, selectedDepotId }) {
       const boissonId = boissonCategory?.id;
 
       // 2. Fetch data based on filters
-      let productQuery = supabase.from('produits').select('*').eq('type', 'vente');
+      let productQuery = supabase
+        .from('produits')
+        .select(`
+          *,
+          stocks (quantity)
+        `)
+        .eq('type', 'vente');
+      
+      if (selectedDepotId) {
+        productQuery = productQuery.eq('stocks.depot_id', selectedDepotId);
+      }
       let menuQuery = supabase.from('menus').select('*, menu_items(produits(name))');
       
       if (boissonId) {
@@ -78,8 +88,11 @@ export default function OrderTaker({ session, selectedDepotId }) {
   }, [selectedDepotId]);
 
   const addToCart = (product) => {
+    // Get stock from the fetched stocks array
+    const stock = product.stocks && product.stocks.length > 0 ? product.stocks[0].quantity : 0;
+    
     // Stock check for products of type 'vente'
-    if (product.type === 'vente' && (product.stock_quantity === null || product.stock_quantity <= 0)) {
+    if (product.type === 'vente' && stock <= 0) {
       alert(`Le produit ${product.name} est en rupture de stock !`);
       return;
     }
@@ -91,7 +104,7 @@ export default function OrderTaker({ session, selectedDepotId }) {
       if (existing) {
         // If it exists, increment the quantity
         // Also check if adding one more exceeds stock
-        if (product.type === 'vente' && existing.quantity + 1 > product.stock_quantity) {
+        if (product.type === 'vente' && existing.quantity + 1 > stock) {
           alert(`Stock insuffisant pour ${product.name} !`);
           return prev;
         }
@@ -495,7 +508,7 @@ export default function OrderTaker({ session, selectedDepotId }) {
                             <span className="text-[8px] font-black text-emerald-600 bg-emerald-50 px-1 rounded ml-1">SP</span>
                         )
                       ) : (
-                        (p.stock_quantity === null || p.stock_quantity <= 0) && (
+                        (!(p.stocks && p.stocks.length > 0 && p.stocks[0].quantity > 0)) && (
                             <span className="text-[8px] font-black text-white bg-gray-800 px-1 rounded ml-1">RUPTURE</span>
                         )
                       )}

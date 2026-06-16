@@ -49,6 +49,7 @@ import StockTransfer from '../components/StockTransfer';
 import Conversions from '../components/Conversions';
 import SalesDashboard from '../components/SalesDashboard';
 import StockHistory from '../components/StockHistory';
+import StockMovementsHistory from '../components/StockMovementsHistory';
 import Decaissement from '../components/Decaissement';
 import OrderTaker from '../components/OrderTaker';
 import KitchenMonitor from '../components/KitchenMonitor';
@@ -446,10 +447,16 @@ export default function Dashboard({ session }) {
                           Entrée de Stock
                         </button>
                         <button 
+                          onClick={() => handleProtectedNavigation('/dashboard/historique-transparence')}
+                          className={`block w-full text-left px-4 py-2 rounded-xl text-lg font-bold transition-all ${activeTab === 'historique-transparence' ? 'bg-red-600 text-white shadow-md' : 'text-gray-400 hover:bg-gray-800 hover:text-white'}`}
+                        >
+                          Mouvement de stocks
+                        </button>
+                        <button 
                           onClick={() => handleProtectedNavigation('/dashboard/historique')}
                           className={`block w-full text-left px-4 py-2 rounded-xl text-lg font-bold transition-all ${activeTab === 'historique' ? 'bg-red-600 text-white shadow-md' : 'text-gray-400 hover:bg-gray-800 hover:text-white'}`}
                         >
-                          Historique
+                          Historique Transferts
                         </button>
                         <button 
                           onClick={() => handleProtectedNavigation('/dashboard/stock-transfer')}
@@ -752,6 +759,7 @@ export default function Dashboard({ session }) {
                 <Route path="credit_history" element={<CreditHistory />} />
                 <Route path="supplier_credits" element={<SupplierCredits />} />
                 <Route path="decaissement" element={<Decaissement session={session} />} />
+                <Route path="historique-transparence" element={<StockMovementsHistory />} />
                 <Route path="historique" element={<StockHistory />} />
                 <Route path="conversions" element={<Conversions session={session} />} />
                 <Route path="depots" element={<Depots />} />

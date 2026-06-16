@@ -573,7 +573,8 @@ export default function OrderTaker({ session, selectedDepotId }) {
                     </button>
                   </div>
                 </div>
-              ))            )}
+              ))
+              )}
           </div>
 
           <div className="p-3 bg-white border-t border-gray-200 space-y-3">

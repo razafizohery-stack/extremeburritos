@@ -159,15 +159,20 @@ export default function RestaurantPOS({ session, selectedDepotId }) {
         }]);
       }
 
+/*
       if (selectedOrder.commande_items) {
         for (const item of selectedOrder.commande_items) {
           if (item.item_type !== 'product') continue;
+
+          // Fetch Stock Principal Depot ID
+          const { data: principalDepot } = await supabase.from('depots').select('id').ilike('name', '%principal%').maybeSingle();
+          const principalDepotId = principalDepot?.id;
 
           const { data: stockData } = await supabase
             .from('stocks')
             .select('id, quantity')
             .eq('product_id', item.item_id)
-            .eq('depot_id', selectedDepotId)
+            .eq('depot_id', principalDepotId || selectedDepotId)
             .maybeSingle();
 
           if (stockData) {
@@ -176,6 +181,15 @@ export default function RestaurantPOS({ session, selectedDepotId }) {
               .from('stocks')
               .update({ quantity: newQuantity })
               .eq('id', stockData.id);
+            
+            // Sync with produits table if it has stock_quantity
+            // Note: This assumes 'stock_quantity' in 'produits' is the global/principal quantity
+            if (principalDepotId && (principalDepotId === (principalDepotId || selectedDepotId))) {
+                await supabase
+                  .from('produits')
+                  .update({ stock_quantity: newQuantity })
+                  .eq('id', item.item_id);
+            }
           }
 
           await supabase.from('stock_movements').insert([{
@@ -189,6 +203,7 @@ export default function RestaurantPOS({ session, selectedDepotId }) {
           }]);
         }
       }
+*/
 
       alert('Encaissement réussi !');
       

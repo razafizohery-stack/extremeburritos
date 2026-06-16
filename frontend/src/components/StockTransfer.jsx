@@ -61,8 +61,38 @@ export default function StockTransfer() {
         return;
       }
 
-      await supabase.rpc('decrement_stock', { p_product_id: product_id, p_depot_id: src, p_quantity: finalQty });
-      await supabase.rpc('increment_stock', { p_product_id: product_id, p_depot_id: dst, p_quantity: finalQty });
+      // Update stock instead of calling RPC
+      // DECREMENT
+      const { data: srcStock } = await supabase
+        .from('stocks')
+        .select('id, quantity')
+        .eq('product_id', product_id)
+        .eq('depot_id', src)
+        .single();
+      
+      await supabase
+        .from('stocks')
+        .update({ quantity: Number(srcStock.quantity) - finalQty })
+        .eq('id', srcStock.id);
+
+      // INCREMENT
+      const { data: dstStock } = await supabase
+        .from('stocks')
+        .select('id, quantity')
+        .eq('product_id', product_id)
+        .eq('depot_id', dst)
+        .maybeSingle();
+
+      if (dstStock) {
+        await supabase
+          .from('stocks')
+          .update({ quantity: Number(dstStock.quantity) + finalQty })
+          .eq('id', dstStock.id);
+      } else {
+        await supabase
+          .from('stocks')
+          .insert({ product_id: product_id, depot_id: dst, quantity: finalQty });
+      }
       fetchStocks(sourceDepotId, setSourceStocks);
       fetchStocks(destDepotId, setDestStocks);
       setTransferModal(null);

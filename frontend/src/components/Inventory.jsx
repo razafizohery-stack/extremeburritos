@@ -532,12 +532,25 @@ export default function Inventory({ selectedDepotId }) {
 
     const product = products.find(p => p.id === newItemFormData.product_id);
     const factor = product.quantite_par_unite || 1;
-    const totalQty = (parseInt(newItemFormData.quantity) || 0) * factor + (parseInt(newItemFormData.quantity_base) || 0);
+    const qty = parseInt(newItemFormData.quantity) || 0;
+    const qtyBase = parseInt(newItemFormData.quantity_base) || 0;
+    const totalQty = qty * factor + qtyBase;
+
+    // Determine unit label
+    let unitLabel = '';
+    if (qty > 0 && qtyBase > 0) {
+        unitLabel = `${product.unite_superieure || 'Ctn'} + ${product.unite_base || 'Pce'}`;
+    } else if (qty > 0) {
+        unitLabel = product.unite_superieure || 'Ctn';
+    } else {
+        unitLabel = product.unite_base || 'Pce';
+    }
 
     // Calculate total price based on price per base unit
     // (Assuming purchase_price_per_unit in BL is per BASE unit for accuracy in mixed entries)
     const newItem = {
       ...newItemFormData,
+      unit: unitLabel,
       total_quantity: totalQty,
       productName: product.name,
       total_purchase: parseFloat(newItemFormData.purchase_price_per_unit) * totalQty
@@ -1605,7 +1618,12 @@ export default function Inventory({ selectedDepotId }) {
                         <div key={index} className="bg-white p-3 rounded-xl border border-gray-100 flex items-center justify-between shadow-sm hover:border-gray-100 transition-colors group">
                           <div>
                             <p className="text-base font-bold text-gray-700">{item.productName}</p>
-                            <p className="text-[15px] text-gray-400 font-medium uppercase mt-0.5">{item.quantity} {item.unit} • Achat: {item.purchase_price_per_unit.toLocaleString()} Ar</p>
+                            <p className="text-[15px] text-gray-400 font-medium uppercase mt-0.5">
+                                {item.quantity > 0 && `${item.quantity} `}
+                                {item.unit}
+                                {item.quantity_base > 0 && ` + ${item.quantity_base} ${item.unite_base || ''}`}
+                                • Achat: {item.purchase_price_per_unit.toLocaleString()} Ar
+                            </p>
                           </div>
                           <div className="flex items-center gap-3">
                             <span className="text-base font-bold text-red-600">{item.total_purchase.toLocaleString()} Ar</span>

@@ -139,65 +139,57 @@ export default function StockEntry() {
 
   const fetchData = async () => {
     setLoading(true);
+    console.log("StockEntry: Fetching all data to categorize by supplier...");
     try {
-      if (activeTab === 'with-supplier') {
-        const { data, error } = await supabase
-          .from('delivery_note_items')
-          .select(`
-            id,
-            quantity,
-            purchase_price_per_unit,
-            line_total_purchase,
-            unit,
-            created_at,
-            delivery_notes (
-              bl_number,
-              bl_date,
-              payment_type,
-              fournisseurs!delivery_notes_supplier_id_fkey (
-                name
-              )
-            ),
-            produits!delivery_note_items_product_id_fkey (
+      const { data, error } = await supabase
+        .from('delivery_note_items')
+        .select(`
+          id,
+          quantity,
+          purchase_price_per_unit,
+          line_total_purchase,
+          unit,
+          created_at,
+          delivery_notes (
+            bl_number,
+            bl_date,
+            payment_type,
+            supplier_id,
+            fournisseurs (
               name
             )
-          `)
-          .not('delivery_notes.supplier_id', 'is', null)
-          .order('created_at', { ascending: false });
+          ),
+          produits (
+            name,
+            unite_base,
+            unite_superieure
+          )
+        `)
+        .order('created_at', { ascending: false });
 
-        if (error) throw error;
-        console.log("StockEntry: Fetched with-supplier data:", data);
-        setWithSupplierData(data || []);
-      } else {
-        // Fetch entries that have NO supplier (or movements without BL)
-        const { data, error } = await supabase
-          .from('delivery_note_items')
-          .select(`
-            id,
-            quantity,
-            purchase_price_per_unit,
-            line_total_purchase,
-            unit,
-            created_at,
-            delivery_notes (
-              bl_number,
-              bl_date,
-              payment_type
-            ),
-            produits!delivery_note_items_product_id_fkey (
-              name
-            )
-          `)
-          .is('delivery_notes.supplier_id', null)
-          .order('created_at', { ascending: false });
+      if (error) throw error;
+      
+      console.log("StockEntry: Total data fetched:", data?.length);
 
-        if (error) throw error;
-        console.log("StockEntry: Fetched without-supplier data:", data);
-        setWithoutSupplierData(data || []);
-      }
+      // Categorize based on supplier name
+      const withSupplier = [];
+      const withoutSupplier = [];
+
+      (data || []).forEach(item => {
+        const supplierName = item.delivery_notes?.fournisseurs?.name;
+        if (supplierName && supplierName.toLowerCase() !== 'inconnu' && supplierName.trim() !== '') {
+          withSupplier.push(item);
+        } else {
+          withoutSupplier.push(item);
+        }
+      });
+
+      setWithSupplierData(withSupplier);
+      setWithoutSupplierData(withoutSupplier);
 
     } catch (err) {
       console.error("Error fetching stock entries:", err);
+      alert("Erreur lors de la récupération des données : " + err.message);
     } finally {
       setLoading(false);
     }
@@ -220,7 +212,11 @@ export default function StockEntry() {
       baseQuantity = qty * parseFloat(product.quantite_par_unite);
     }
     
-    const unitName = newItem.unit === 'superior' ? (product.unite_superieure || 'Colis') : (product.unite_base || 'Unités');
+    // Dynamic unit name resolution
+    let unitName = product.unite_base || 'Unités';
+    if (newItem.unit === 'superior') {
+        unitName = product.unite_superieure || 'Colis';
+    }
 
     setBLItems([...blItems, { 
       ...newItem, 
@@ -301,25 +297,40 @@ export default function StockEntry() {
         }]);
 
         // Update physical stock in selected depot
-        const { data: existingStock } = await supabase
+        console.log("StockEntry: Updating stock for product:", item.product_id, "in depot:", blFormData.depot_id, "quantity:", item.baseQuantity);
+        
+        const { data: existingStock, error: stockQueryError } = await supabase
           .from('stocks')
           .select('id, quantity')
           .eq('product_id', item.product_id)
           .eq('depot_id', blFormData.depot_id)
           .maybeSingle();
+        
+        if (stockQueryError) console.error("StockEntry: Error querying stock:", stockQueryError);
 
+        let newStockQuantity = 0;
         if (existingStock) {
+          newStockQuantity = parseFloat(existingStock.quantity) + parseFloat(item.baseQuantity);
           await supabase.from('stocks')
-            .update({ quantity: parseFloat(existingStock.quantity) + parseFloat(item.baseQuantity) })
+            .update({ quantity: newStockQuantity })
             .eq('id', existingStock.id);
         } else {
+          newStockQuantity = parseFloat(item.baseQuantity);
           await supabase.from('stocks').insert([{
             product_id: item.product_id,
             depot_id: blFormData.depot_id,
-            quantity: item.baseQuantity
+            quantity: newStockQuantity
           }]);
         }
         
+        // Sync with produits table (global/principal stock)
+        // Fetch current product stock to add the new quantity
+        const { data: prodData } = await supabase.from('produits').select('stock_quantity').eq('id', item.product_id).single();
+        const currentProdStock = prodData?.stock_quantity || 0;
+        await supabase.from('produits')
+          .update({ stock_quantity: Number(currentProdStock) + Number(item.baseQuantity) })
+          .eq('id', item.product_id);
+
         // Update global product purchase price if needed
         await supabase.from('produits')
           .update({ purchase_price: item.purchase_price_per_unit })
@@ -568,6 +579,15 @@ export default function StockEntry() {
                       <option value="credit">Vente à Crédit</option>
                     </select>
                   </div>
+                  <div className="space-y-1">
+                    <label className="text-[15px] font-bold text-gray-400 uppercase ml-1 tracking-widest">Total BL (Ar)</label>
+                    <input 
+                      type="number"
+                      readOnly
+                      className="w-full bg-gray-100 border border-gray-200 rounded-xl px-4 py-2.5 text-lg font-black text-red-600 outline-none cursor-not-allowed"
+                      value={blFormData.total_amount}
+                    />
+                  </div>
                   {blFormData.payment_type === 'credit' && (
                     <>
                       <div className="space-y-1 animate-in slide-in-from-top-2 duration-200">
@@ -764,8 +784,8 @@ export default function StockEntry() {
                     <th className="px-6 py-4 text-[15px] font-bold text-red-800 uppercase tracking-widest border-b border-gray-100/50">Date</th>
                     <th className="px-6 py-4 text-[15px] font-bold text-red-800 uppercase tracking-widest border-b border-gray-100/50">Fournisseur</th>
                     <th className="px-6 py-4 text-[15px] font-bold text-red-800 uppercase tracking-widest border-b border-gray-100/50">N° BL</th>
-                    <th className="px-6 py-4 text-[15px] font-bold text-red-800 uppercase tracking-widest border-b border-gray-100/50">Désignation</th>
-                    <th className="px-6 py-4 text-[15px] font-bold text-red-800 uppercase tracking-widest border-b border-gray-100/50">Paiement</th>
+                    <th className="px-6 py-4 text-[15px] font-bold text-red-800 uppercase tracking-widest border-b border-gray-100/50">Produits</th>
+                    <th className="px-6 py-4 text-[15px] font-bold text-red-800 uppercase tracking-widest border-b border-gray-100/50">Paiement method</th>
                     <th className="px-6 py-4 text-[15px] font-bold text-red-800 uppercase tracking-widest border-b border-gray-100/50 text-center">Qté</th>
                     <th className="px-6 py-4 text-[15px] font-bold text-red-800 uppercase tracking-widest border-b border-gray-100/50">Unité</th>
                     <th className="px-6 py-4 text-[15px] font-bold text-red-800 uppercase tracking-widest border-b border-gray-100/50 text-right">P.A.U</th>
@@ -773,7 +793,8 @@ export default function StockEntry() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-50/30">
-                  {withSupplierData.filter(item => item.delivery_notes?.bl_number).length > 0 ? withSupplierData.filter(item => item.delivery_notes?.bl_number).map((item) => (
+                  {withSupplierData.map((item) => {
+                    return (
                     <tr key={item.id} className="hover:bg-gray-50/10 transition-colors group">
                       <td className="px-6 py-3.5">
                         <p className="text-base font-bold text-gray-600">{new Date(item.delivery_notes?.bl_date || item.created_at).toLocaleDateString()}</p>
@@ -798,29 +819,37 @@ export default function StockEntry() {
                         <p className="text-base font-bold text-red-600">{item.quantity}</p>
                       </td>
                       <td className="px-6 py-3.5">
-                        <p className="text-[16px] font-medium text-gray-400 uppercase tracking-wider">{item.unit === 'base' ? 'Unité' : (item.unit || 'Unité')}</p>
+                        <p className="text-[16px] font-medium text-gray-400 uppercase tracking-wider">
+                          {item.unit === 'superior' 
+                            ? (item.produits?.unite_superieure || 'Colis') 
+                            : (item.produits?.unite_base || 'Unité')}
+                        </p>
                       </td>
                       <td className="px-6 py-3.5 text-right">
-                        <p className="text-base font-bold text-gray-600">{parseFloat(item.purchase_price_per_unit).toLocaleString()} Ar</p>
+                        <p className="text-base font-bold text-gray-600">{parseFloat(item.purchase_price_per_unit || 0).toLocaleString()} Ar</p>
                       </td>
                       <td className="px-6 py-3.5 text-right">
-                        <p className="text-base font-bold text-red-600">{parseFloat(item.line_total_purchase).toLocaleString()} Ar</p>
+                        <p className="text-base font-bold text-red-600">{parseFloat(item.line_total_purchase || 0).toLocaleString()} Ar</p>
                       </td>
                     </tr>
-                  )) : (
-                    <tr>
-                      <td colSpan="9" className="p-20 text-center text-gray-400 font-bold uppercase text-[15px] tracking-widest">Aucune donnée trouvée</td>
-                    </tr>
-                  )}
+                    );
+                  })}
                 </tbody>
+                <tfoot className="bg-gray-50">
+                  <tr>
+                    <td colSpan="7" className="px-6 py-4 text-right font-black text-red-800 uppercase">Total</td>
+                    <td className="px-6 py-4 text-right font-black text-gray-900">{withSupplierData.reduce((acc, item) => acc + parseFloat(item.purchase_price_per_unit || 0), 0).toLocaleString()} Ar</td>
+                    <td className="px-6 py-4 text-right font-black text-gray-900">{withSupplierData.reduce((acc, item) => acc + parseFloat(item.line_total_purchase || 0), 0).toLocaleString()} Ar</td>
+                  </tr>
+                </tfoot>
               </table>
             ) : (
               <table className="w-full text-left border-collapse min-w-[800px]">
                 <thead className="sticky top-0 z-20 bg-gray-50/50 shadow-sm backdrop-blur-md">
                   <tr>
                     <th className="px-6 py-4 text-[15px] font-bold text-red-800 uppercase tracking-widest border-b border-gray-100/50">Date</th>
-                    <th className="px-6 py-4 text-[15px] font-bold text-red-800 uppercase tracking-widest border-b border-gray-100/50">Motif</th>
-                    <th className="px-6 py-4 text-[15px] font-bold text-red-800 uppercase tracking-widest border-b border-gray-100/50">Désignation</th>
+                    <th className="px-6 py-4 text-[15px] font-bold text-red-800 uppercase tracking-widest border-b border-gray-100/50">Fournisseur</th>
+                    <th className="px-6 py-4 text-[15px] font-bold text-red-800 uppercase tracking-widest border-b border-gray-100/50">Produit</th>
                     <th className="px-6 py-4 text-[15px] font-bold text-red-800 uppercase tracking-widest border-b border-gray-100/50 text-center">Qté</th>
                     <th className="px-6 py-4 text-[15px] font-bold text-red-800 uppercase tracking-widest border-b border-gray-100/50">Unité</th>
                     <th className="px-6 py-4 text-[15px] font-bold text-red-800 uppercase tracking-widest border-b border-gray-100/50 text-right">P.A.U</th>
@@ -834,7 +863,7 @@ export default function StockEntry() {
                         <p className="text-base font-bold text-gray-600">{new Date(item.created_at).toLocaleDateString()}</p>
                       </td>
                       <td className="px-6 py-3.5">
-                        <p className="text-[16px] font-bold text-red-600 uppercase tracking-widest">{item.reason || '-'}</p>
+                        <p className="text-[16px] font-bold text-red-600 uppercase tracking-widest">{item.delivery_notes?.fournisseurs?.name || 'Inconnu'}</p>
                       </td>
                       <td className="px-6 py-3.5">
                         <p className="text-base font-bold text-gray-700">{item.produits?.name}</p>
@@ -843,13 +872,17 @@ export default function StockEntry() {
                         <p className="text-base font-bold text-red-600">{item.quantity}</p>
                       </td>
                       <td className="px-6 py-3.5">
-                        <p className="text-[16px] font-medium text-gray-400 uppercase tracking-wider">{item.unit || 'Unité'}</p>
+                        <p className="text-[16px] font-medium text-gray-400 uppercase tracking-wider">
+                          {item.unit === 'superior' 
+                            ? (item.produits?.unite_superieure || 'Colis') 
+                            : (item.produits?.unite_base || 'Unité')}
+                        </p>
                       </td>
                       <td className="px-6 py-3.5 text-right">
-                        <p className="text-base font-bold text-gray-600">{(item.price_at_movement || 0).toLocaleString()} Ar</p>
+                        <p className="text-base font-bold text-gray-600">{(item.purchase_price_per_unit || item.price_at_movement || 0).toLocaleString()} Ar</p>
                       </td>
                       <td className="px-6 py-3.5 text-right">
-                        <p className="text-base font-bold text-red-600">{(item.quantity * (item.price_at_movement || 0)).toLocaleString()} Ar</p>
+                        <p className="text-base font-bold text-red-600">{(item.line_total_purchase || (item.quantity * (item.price_at_movement || 0))).toLocaleString()} Ar</p>
                       </td>
                     </tr>
                   )) : (
@@ -858,6 +891,13 @@ export default function StockEntry() {
                     </tr>
                   )}
                 </tbody>
+                <tfoot className="bg-gray-50">
+                  <tr>
+                    <td colSpan="5" className="px-6 py-4 text-right font-black text-red-800 uppercase">Total</td>
+                    <td className="px-6 py-4 text-right font-black text-gray-900">{withoutSupplierData.reduce((acc, item) => acc + parseFloat(item.purchase_price_per_unit || item.price_at_movement || 0), 0).toLocaleString()} Ar</td>
+                    <td className="px-6 py-4 text-right font-black text-gray-900">{withoutSupplierData.reduce((acc, item) => acc + parseFloat(item.line_total_purchase || (item.quantity * (item.price_at_movement || 0))), 0).toLocaleString()} Ar</td>
+                  </tr>
+                </tfoot>
               </table>
             )}
           </div>

@@ -79,34 +79,77 @@ export default function KitchenMonitor({ session }) {
   }, []);
 
   const updateStatus = async (orderId, newStatus) => {
+    console.log("updateStatus called:", { orderId, newStatus });
     let errorOccurred = false;
     try {
-        if (newStatus === 'cancelled') {
-            const { data: orderData } = await supabase
-                .from('commandes')
-                .select('commande_items(item_id, item_type, quantity)')
-                .eq('id', orderId)
-                .single();
+        // Fetch items to handle stock
+        const { data: orderData, error: orderError } = await supabase
+            .from('commandes')
+            .select('commande_items(item_id, item_type, quantity)')
+            .eq('id', orderId)
+            .single();
 
-            if (orderData && orderData.commande_items) {
-                for (const item of orderData.commande_items) {
-                    if (item.item_type === 'product') {
-                        const { data: stockData } = await supabase
+        console.log("Order data fetched:", orderData);
+        if (orderError) throw orderError;
+
+        if (orderData && orderData.commande_items) {
+            for (const item of orderData.commande_items) {
+                console.log("Processing item:", item);
+                // If cancelling, add back. If ready, subtract.
+                const adjustment = newStatus === 'cancelled' ? Number(item.quantity) : -Number(item.quantity);
+                console.log("Adjustment calculated:", adjustment);
+                
+                if (item.item_type === 'product' && adjustment !== 0) {
+                    const { data: stockData } = await supabase
+                        .from('stocks')
+                        .select('id, quantity')
+                        .eq('product_id', item.item_id)
+                        .maybeSingle();
+
+                    console.log("Stock data for product:", stockData);
+
+                    if (stockData) {
+                        const { error: updateError } = await supabase
                             .from('stocks')
-                            .select('id, quantity')
-                            .eq('product_id', item.item_id)
-                            .maybeSingle();
-
-                        if (stockData) {
-                            await supabase
-                                .from('stocks')
-                                .update({ quantity: Number(stockData.quantity) + Number(item.quantity) })
-                                .eq('id', stockData.id);
-                        }
+                            .update({ quantity: Number(stockData.quantity) + adjustment })
+                            .eq('id', stockData.id);
+                        
+                        console.log("Product stock update result:", updateError || "Success");
+                        if (updateError) throw updateError;
                     }
+                } else if (item.item_type === 'menu' && adjustment !== 0) {
+                     const { data: menuItems } = await supabase
+                        .from('menu_items')
+                        .select('produit_id')
+                        .eq('menu_id', item.item_id);
+
+                     console.log("Menu items found:", menuItems);
+
+                     if (menuItems) {
+                         for (const mi of menuItems) {
+                             const { data: stockData } = await supabase
+                                .from('stocks')
+                                .select('id, quantity')
+                                .eq('product_id', mi.produit_id)
+                                .maybeSingle();
+
+                             console.log("Stock data for menu product:", stockData);
+
+                             if (stockData) {
+                                const { error: updateError } = await supabase
+                                    .from('stocks')
+                                    .update({ quantity: Number(stockData.quantity) + adjustment })
+                                    .eq('id', stockData.id);
+                                
+                                console.log("Menu product stock update result:", updateError || "Success");
+                                if (updateError) throw updateError;
+                             }
+                         }
+                     }
                 }
             }
         }
+
 
         const { error } = await supabase
             .from('commandes')

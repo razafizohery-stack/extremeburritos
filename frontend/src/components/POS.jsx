@@ -452,33 +452,8 @@ export default function POS({ session, selectedDepotId }) {
           }
       }
 
-      // Mise à jour du stock
+      // Record stock movement
       for (const item of invoiceItems) {
-        // Update depot-specific stock
-        if (selectedDepotId) {
-          const { data: depotStock } = await supabase
-            .from('stocks')
-            .select('id, quantity')
-            .eq('product_id', item.id)
-            .eq('depot_id', selectedDepotId)
-            .maybeSingle();
-
-          if (depotStock) {
-            await supabase.from('stocks')
-              .update({ quantity: Number(depotStock.quantity) - Number(item.quantity) })
-              .eq('id', depotStock.id);
-          } else {
-            // This case should normally not happen due to POS filtering, 
-            // but for safety we could insert if needed.
-            await supabase.from('stocks').insert([{
-              product_id: item.id,
-              depot_id: selectedDepotId,
-              quantity: -Number(item.quantity)
-            }]);
-          }
-        }
-        
-        // Record stock movement
         await supabase.from('stock_movements').insert([{
           product_id: item.id,
           type: 'out',
